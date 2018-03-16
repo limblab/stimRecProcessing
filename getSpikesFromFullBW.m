@@ -37,68 +37,18 @@ if clearHighChans
     end
 end
 %% HP filter
-    disp('high pass filtering')
-    if median([NSx.ElectrodesInfo.HighFreqCorner])/1000<cutoff
-        NSx.Data=filtfilt(b,a,NSx.Data')';
-    end
-
-%% select good channels:
-if inputData.manualCheck
-    chanMask=true(size(NSx.Data,1),1);    
-    for i=1:size(NSx.Data,1)
-        tmpData=reshape(NSx.Data(i,1:10000)/4,[100,100]);
-        figure;plot(tmpData )
-        inputChar='?';
-        while ~strcmpi(inputChar,'g') && ~strcmpi(inputChar,'b')
-            inputChar=input('is the channel good?','s');
-            if numel(inputChar)>1
-                warning('only single characters g or b accepted')
-            end
-        end
-        if strcmpi(inputChar,'b')
-            chanMask(i)=0;
+    if(inputData.doAcausalFilter)
+        disp('acausal high pass filtering')
+        error('the following code has not been sanity checked for the correct transposition of data fed to the filter. do that check and remove this error')
+        NSx.Data=acausalFilter(NSx.Data');
+    else
+        disp('high pass filtering')
+        if median([NSx.ElectrodesInfo.HighFreqCorner])/1000<cutoff
+            NSx.Data=filtfilt(b,a,NSx.Data')';
         end
     end
-end
 
-%% rereference good channels to mean of good channels
-if inputData.meanFilter
-    disp('re-referencing to the common mode mean')
-    NSx.Data=NSx.Data(chanMask,:)-repmat(mean(NSx.Data(chanMask,:)),[sum(chanMask),1]);
-    %also clean up bad channels from meta and electrodsInfo
-    NSx.MetaTags.ChannelID=NSx.MetaTags.ChannelID(chanMask);
-    NSx.MetaTags.ChannelCount=sum(chanMask);
-    NSx.ElectrodesInfo=NSx.ElectrodesInfo(chanMask);
-end
-%% PCA filter
-if inputData.PCAFilter
-    nPoints=size(NSx.Data,2);
-    disp('estimating PCs of the data')
-    [coeffData]=pca(single(NSx.Data(:,randsample(nPoints,floor(nPoints/10)))'));
-    
-    disp('shuffling the data')
-    %create mask to shuffle data to generate baseline PC weights:
-    mask=zeros(size(NSx.Data,1),floor(nPoints/10));
-    for i=1:size(mask,1);
-        mask(i,:)=datasample(1:nPoints,floor(nPoints/10),'Replace',false);%datasample appears to be *slightly* faster than randsample for large data
-    end
-    %get PCs of shuffled data
-    disp('calculating PCs of shuffled data')
-    coeffBase=pca(single(NSx.Data(mask)'));
-    %compare PC values of real data to shuffled distribution 
-    disp('checking whether weights in PCs of real data fall outside the normal range for shuffled data')
-    baseDist=fitdist(coeffBase(:),'kernel');
-    probs=reshape(cdf(baseDist,coeffData(:)),size(coeffData));
-    mask=sum(probs>.95)>5;
-    numPCs=sum(mask);
-    if numPCs>0
-        disp(['found ',num2str(numPCs),' PCs that have weights across multiple channels'])
-        disp('removing these PCs')
-        tmp=double(NSx.Data')*inv(coeffData);
-        tmp(:,mask)=0;
-        NSx.Data=int16(round(NSx.Data-int16(tmp*coeffData)'));
-    end
-end
+
 %% threshold
 disp('find threshold crossings')
     thresholdCrossings=nan(size(NSx.Data,1), ceil(size(NSx.Data,2)/postSample));
@@ -129,30 +79,9 @@ disp('find threshold crossings')
 
 %% compose nev
 disp('starting to compose nev structure')
-    %MetaTags field
-        nev.MetaTags.Subject=[];
-        nev.MetaTags.Experimenter=[];
-        nev.MetaTags.DateTime=NSx.MetaTags.DateTime;
-        nev.MetaTags.SampleRes=uint32(NSx.MetaTags.SamplingFreq);
-        nev.MetaTags.Comment=NSx.MetaTags.Comment;
-        nev.MetaTags.FileTypeID='NEURALEV';
-        nev.MetaTags.Flags='0000000000000001';
-        nev.MetaTags.openNEVver=[];
-        nev.MetaTags.DateTimeRaw=NSx.MetaTags.DateTimeRaw;
-        nev.MetaTags.FileSpec='2.3';
-        nev.MetaTags.HeaderOffset=14224;
-        nev.MetaTags.DataDuration=round(NSx.MetaTags.DataDurationSec*30000);
-        nev.MetaTags.DataDurationSec=NSx.MetaTags.DataDurationSec;
-        nev.MetaTags.PacketCount=1000;%this is a random value, I don't *think* it is saved, since openNEV computes it on the fly
-        nev.MetaTags.TimeRes=sampleRate;
-        nev.MetaTags.Application='File Dialog v6.03.01.00';
-        nev.MetaTags.Filename=NSx.MetaTags.Filename;
-        nev.MetaTags.FilePath=NSx.MetaTags.FilePath;
-        nev.MetaTags.FileExt='.nev';
-        nev.MetaTags.ChannelID=NSx.MetaTags.ChannelID;
     %Data field
         %SerialDigitalIO
-            nev.Data.SeriNSx.DataalDigitalIO.InputType=[];
+            nev.Data.SerialDigitalIO.InputType=[];
             nev.Data.SerialDigitalIO.TimeStamp=[];
             nev.Data.SerialDigitalIO.TimeStampSec=[];
             nev.Data.SerialDigitalIO.Type=[];
@@ -237,7 +166,42 @@ disp('starting to compose nev structure')
             nev.ElectrodesInfo(i).LowFilterType=NSx.ElectrodesInfo(i).LowFilterType;
         end
     %IOLabels field
-    nev.IOLabels={['serial' 0 0 0 0 0 0 0 0 0 0],['digin' 0 0 0 0 0 0 0 0 0 0 0] };
+        nev.IOLabels={['serial' 0 0 0 0 0 0 0 0 0 0],['digin' 0 0 0 0 0 0 0 0 0 0 0] };
+    %MetaTags field
+        nev.MetaTags.Subject=[];
+        nev.MetaTags.Experimenter=[];
+        nev.MetaTags.DateTime=NSx.MetaTags.DateTime;
+        nev.MetaTags.SampleRes=uint32(NSx.MetaTags.SamplingFreq);
+        nev.MetaTags.Comment=NSx.MetaTags.Comment;
+        nev.MetaTags.FileTypeID='NEURALEV';
+        nev.MetaTags.Flags='0000000000000001';
+        nev.MetaTags.openNEVver=[];
+        nev.MetaTags.DateTimeRaw=NSx.MetaTags.DateTimeRaw;
+        nev.MetaTags.FileSpec='2.3';
+        %per nev file spec, header offset is number of bytes in header
+        %basicHeaderBytes+extendedHeaderBytes
+        %basic header bytes are 336
+        %extended header bytes are:
+        %32*(
+        %       3*numChansWithSpikes    +  
+        %       NumDigitalLabels        +  
+        %       NumVideoSources         +
+        %       NumTrackableObjectIDs   )
+        %
+        %there should always be 2 digital labels, 'serial' and 'digin' so
+        %NumDigitalLabels will be 2
+        %for files with no tracking or video, this condenses to:
+        %336+32*(3*numChanWithSpikes+2)
+        nev.MetaTags.HeaderOffset=336+32*(3*numel(nev.ElectrodesInfo)+numel(nev.IOLabels));
+        nev.MetaTags.DataDuration=round(NSx.MetaTags.DataDurationSec*30000);
+        nev.MetaTags.DataDurationSec=NSx.MetaTags.DataDurationSec;
+        nev.MetaTags.PacketCount=1000;%this is a random value, I don't *think* it is saved, since openNEV computes it on the fly
+        nev.MetaTags.TimeRes=sampleRate;
+        nev.MetaTags.Application='File Dialog v6.03.01.00';
+        nev.MetaTags.Filename=NSx.MetaTags.Filename;
+        nev.MetaTags.FilePath=NSx.MetaTags.FilePath;
+        nev.MetaTags.FileExt='.nev';
+        nev.MetaTags.ChannelID=NSx.MetaTags.ChannelID;
     
     saveNEV(nev,[folderPath,'Output_Data',filesep, inputData.fileName(1:end-3),'nev'])
     outputData.nev=nev;
