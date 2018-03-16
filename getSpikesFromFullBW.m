@@ -3,8 +3,6 @@ function [figureList,outputData]=getSpikesFromFullBW(folderPath,inputData)
     %standard deviations from mean for theshold
     stdErrThresh=inputData.stdErrThresh;
 
-    %clear high channels flag
-    clearHighChans=inputData.clearHighChans;
     %snippitWindow
     preSample=inputData.preSample;
     postSample=inputData.postSample;
@@ -23,7 +21,7 @@ function [figureList,outputData]=getSpikesFromFullBW(folderPath,inputData)
 disp('opening file')
     NSx=openNSx('read', [folderPath,inputData.fileName]);
 %% clear unwanted high channels:
-if clearHighChans
+if inputData.clearHighChans
     disp('removing unwanted channels')
     if max([NSx.ElectrodesInfo.ElectrodeID])>96
         chanMask=[NSx.ElectrodesInfo.ElectrodeID]<97;
