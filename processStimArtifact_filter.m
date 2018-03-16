@@ -91,8 +91,6 @@ function [ outputFigures,outputData ] = processStimArtifact_filter(folderpath, i
         %% use sync to get stim times:
         artifactData(i).stimOn=find(diff(cds.analog{aIdx}.(syncName)-mean(cds.analog{aIdx}.(syncName))>3)>.5);
         stimOff=find(diff(cds.analog{aIdx}.(syncName)-mean(cds.analog{aIdx}.(syncName))<-3)>.5);
-        artifactData(i).stimOn = artifactData(i).stimOn;
-%         artifactData(i).stimOn = artifactData(i).stimOn(1);
         artifactData(i).stimOff=nan(size(artifactData(i).stimOn));
         for j=1:numel(artifactData(i).stimOn)
             if j<numel(artifactData(i).stimOn)
@@ -110,12 +108,11 @@ function [ outputFigures,outputData ] = processStimArtifact_filter(folderpath, i
         %% find monitor data for cerestim monitoring ports:
         monitorName='monitor';
         for j=1:numel(cds.analog)
-            monitorIdx=find(strcmp(cds.analog{j}.Properties.VariableNames,[monitorName,'1']) | strcmp(cds.analog{j}.Properties.VariableNames,'Cerestim_module'));
+            monitorIdx=find(strcmp(cds.analog{j}.Properties.VariableNames,[monitorName,'1']));
             if ~isempty(monitorIdx)
                 mIdx=j;
             end
         end
-        
         
         %% put spikes into structure:
         idxStart=strfind(fileList(i).name,'chan')+4;
@@ -186,13 +183,11 @@ function [ outputFigures,outputData ] = processStimArtifact_filter(folderpath, i
                     end
                 end
                 if exist('mIdx','var')
-                    monitorCh1Mat(j-1,k,1:inputData.windowSize+inputData.presample)=reshape(cds.analog{mIdx}.Cerestim_module(stimWindows(k,1)-inputData.presample:stimWindows(k,2)),[1,1,inputData.windowSize+inputData.presample]);
-%                     monitorCh1Mat(j-1,k,1:inputData.windowSize+inputData.presample)=reshape(cds.ananlog{mIdx}.([monitorName,'1'])(stimWindows(k,1)-inputData.presample:stimWindows(k,2)),[1,1,inputData.windowSize+inputData.presample]);
-%                     monitorCh2Mat(j-1,k,1:inputData.windowSize+inputData.presample)=reshape(cds.ananlog{mIdx}.([monitorName,'2'])(stimWindows(k,1)-inputData.presample:stimWindows(k,2)),[1,1,inputData.windowSize+inputData.presample]);
+                    monitorCh1Mat(j-1,k,1:inputData.windowSize+inputData.presample)=reshape(cds.ananlog{mIdx}.([monitorName,'1'])(stimWindows(k,1)-inputData.presample:stimWindows(k,2)),[1,1,inputData.windowSize+inputData.presample]);
+                    monitorCh2Mat(j-1,k,1:inputData.windowSize+inputData.presample)=reshape(cds.ananlog{mIdx}.([monitorName,'2'])(stimWindows(k,1)-inputData.presample:stimWindows(k,2)),[1,1,inputData.windowSize+inputData.presample]);
                 end
             end
         end
-        
         artifactData(i).artifact=artifactMat;
         artifactData(i).electrodeNames=electrodeList;
         artifactData(i).monitor1=monitorCh1Mat;
@@ -249,162 +244,174 @@ function [ outputFigures,outputData ] = processStimArtifact_filter(folderpath, i
     
 
     %% plot the artifacts for each stim channel/waveform:
-    if(inputData.makePlots)
-        if(interleavedTrials) % only plot data from artifactData(1), but make a 
-            % plot for each waveform/stim channel combination
-            numChans = numel(unique(artifactData(1).chanSent));
-            stimChanList = unique(artifactData(1).chanSent);
-            numWaves = numel(unique(artifactData(1).waveNum));
-            for nc = 1:numChans
-                for nw = 1:numWaves
-                    outputFigures(end+1) = figure;
-                    set(outputFigures(end),'Name',['StimOnCH-',num2str(stimChanList(nc)),'Wave-',num2str(nw),'_AllChannels'])
-                    numPlotPixels=1200;
-                    set(outputFigures(end),'Position',[100 100 numPlotPixels numPlotPixels]);
-                    paperSize=0.2+numPlotPixels/get(outputFigures(end),'ScreenPixelsPerInch');
-                    set(outputFigures(end),'PaperSize',[paperSize,paperSize]);
-                    for j = 1:numel(artifactData(1).electrodeNames)
-                        %find the index in our full list of electrodes, that
-                        %corresponds to the channel j in artifactData(i)
-                        posIdx=find(strcmp(eList,artifactData(1).electrodeNames{j}));
-                        eRow=posList(posIdx,1);
-                        eCol=posList(posIdx,2);
-                        h=subplot(10,10,10*(eRow-1)+eCol);
-                        hold on
-                        if chList(posIdx)==stimChanList(nc)
-                            %put a purple box around the stim channel:
-                            stimBoxX=[.95*(-inputData.presample/30),.95*(size(artifactData(1).artifact,3)-inputData.presample)/30,.95*(size(artifactData(1).artifact,3)-inputData.presample)/30,...
-                                .95*(-inputData.presample/30),.95*(-inputData.presample/30)];
-                            stimBoxY=[-inputData.plotRange*.95*1000,-inputData.plotRange*.95*1000,inputData.plotRange*.95*1000,inputData.plotRange*.95*1000,-inputData.plotRange*.95*1000];
-                            plot(stimBoxX,stimBoxY,'mp-','linewidth',3)
-                        end
-                        if find(chList(posIdx)==inputData.badChList,1,'first')
-                           %put a red X through known bad channels:
-                           badMarkX=[2,.95*size(artifactData(1).artifact,3)];
-                           badMarkY=[-inputData.plotRange*.95*1000,inputData.plotRange*.95*1000];
-                           plot(badMarkX,badMarkY,'rp-','lineWidth',3)
-                           badMarkX=[2,.95*size(artifactData(1).artifact,3)];
-                           badMarkY=[inputData.plotRange*.95*1000,-inputData.plotRange*.95*1000];
-                           plot(badMarkX,badMarkY,'rp-','lineWidth',3)
-                        end
-                        inputData.filtered = 0;
-                        inputData.plotAllChannels = 1;
-                        plotArtifacts_singleParameter(inputData,artifactData,j,stimChanList(nc),nw);
-                    end
-                end
-            end
-
-            % make non-filtered plot of stimulated channel
-            for nc = 1:numChans
-                for nw = 1:numWaves
-                    outputFigures(end+1) = figure;
-                    set(outputFigures(end),'Name',['StimOnCH-',num2str(stimChanList(nc)),'Wave-',num2str(nw),'_Raw'])
-                    for j = 1:numel(artifactData(1).electrodeNames)
-                        %find the index in our full list of electrodes, that
-                        %corresponds to the channel j in artifactData(i)
-                        posIdx=find(strcmp(eList,artifactData(1).electrodeNames{j}));
-                        hold on
-                        if chList(posIdx)==stimChanList(nc)
-                            % make plot
-                            inputData.filtered = 0;
-                            inputData.plotAllChannels = 0;  
-                            plotArtifacts_singleParameter(inputData,artifactData,j,stimChanList(nc),nw);
-                        end
-                    end
-                end
-            end
-
-            % make filtered plot of stimulated channel
-            for nc = 1:numChans
-                for nw = 1:numWaves
-                    outputFigures(end+1) = figure;
-                    set(outputFigures(end),'Name',['StimOnCH-',num2str(stimChanList(nc)),'Wave-',num2str(nw),'_Filtered'])
-                    for j = 1:numel(artifactData(1).electrodeNames)
-                        %find the index in our full list of electrodes, that
-                        %corresponds to the channel j in artifactData(i)
-                        posIdx=find(strcmp(eList,artifactData(1).electrodeNames{j}));
-                        hold on
-                        if chList(posIdx)==stimChanList(nc)
-                            % make plot
-                            inputData.filtered = 1;
-                            inputData.plotAllChannels = 0;
-                            plotArtifacts_singleParameter(inputData,artifactData,j,stimChanList(nc),nw);
-                        end
-                    end
-                end
-            end
-        else % make plots for each artifactData, assume cathodal and anodal interleaved
-            % make a 10x10 figure with the response for each response channel
-            for i = 1:numel(artifactData)
-                outputFigures(end+1)=figure;
-                set(outputFigures(end),'Name',['StimOnCH-',num2str(artifactData(i).stimChannel),'_AllChannels_FileNum-',num2str(i)])
+    if isfield(inputData,'doFigures') && ~inputData.doFigures
+        return
+    end
+    if(interleavedTrials) % only plot data from artifactData(1), but make a 
+        % plot for each waveform/stim channel combination
+        numChans = numel(unique(artifactData(1).chanSent));
+        stimChanList = unique(artifactData(1).chanSent);
+        numWaves = numel(unique(artifactData(1).waveNum));
+        for nc = 1:numChans
+            for nw = 1:numWaves
+                outputFigures(end+1) = figure;
+                set(outputFigures(end),'Name',['StimOnCH-',num2str(stimChanList(nc)),'Wave-',num2str(nw),'_AllChannels'])
                 numPlotPixels=1200;
                 set(outputFigures(end),'Position',[100 100 numPlotPixels numPlotPixels]);
                 paperSize=0.2+numPlotPixels/get(outputFigures(end),'ScreenPixelsPerInch');
                 set(outputFigures(end),'PaperSize',[paperSize,paperSize]);
-                for j = 1:numel(artifactData(i).electrodeNames)
+                for j = 1:numel(artifactData(1).electrodeNames)
                     %find the index in our full list of electrodes, that
                     %corresponds to the channel j in artifactData(i)
-                    posIdx=find(strcmp(eList,artifactData(i).electrodeNames{j}));
+                    posIdx=find(strcmp(eList,artifactData(1).electrodeNames{j}));
                     eRow=posList(posIdx,1);
                     eCol=posList(posIdx,2);
                     h=subplot(10,10,10*(eRow-1)+eCol);
                     hold on
-                    if chList(posIdx)==artifactData(i).stimChannel
+                    if chList(posIdx)==stimChanList(nc)
                         %put a purple box around the stim channel:
-                        stimBoxX=[2,.95*size(artifactData(i).artifact,3),.95*size(artifactData(i).artifact,3),2,2];
+                        stimBoxX=[.95*(-inputData.presample/30),.95*(size(artifactData(1).artifact,3)-inputData.presample)/30,.95*(size(artifactData(1).artifact,3)-inputData.presample)/30,...
+                            .95*(-inputData.presample/30),.95*(-inputData.presample/30)];
                         stimBoxY=[-inputData.plotRange*.95*1000,-inputData.plotRange*.95*1000,inputData.plotRange*.95*1000,inputData.plotRange*.95*1000,-inputData.plotRange*.95*1000];
                         plot(stimBoxX,stimBoxY,'mp-','linewidth',3)
                     end
                     if find(chList(posIdx)==inputData.badChList,1,'first')
                        %put a red X through known bad channels:
-                       badMarkX=[2,.95*size(artifactData(i).artifact,3)];
+                       badMarkX=[2,.95*size(artifactData(1).artifact,3)];
                        badMarkY=[-inputData.plotRange*.95*1000,inputData.plotRange*.95*1000];
                        plot(badMarkX,badMarkY,'rp-','lineWidth',3)
-                       badMarkX=[2,.95*size(artifactData(i).artifact,3)];
+                       badMarkX=[2,.95*size(artifactData(1).artifact,3)];
                        badMarkY=[inputData.plotRange*.95*1000,-inputData.plotRange*.95*1000];
                        plot(badMarkX,badMarkY,'rp-','lineWidth',3)
                     end
                     inputData.filtered = 0;
                     inputData.plotAllChannels = 1;
+                    plotArtifacts_singleParameter(inputData,artifactData,j,stimChanList(nc),nw);
+                end
+            end
+        end
+
+        % make non-filtered plot of stimulated channel
+        for nc = 1:numChans
+            for nw = 1:numWaves
+                outputFigures(end+1) = figure;
+                set(outputFigures(end),'Name',['StimOnCH-',num2str(stimChanList(nc)),'Wave-',num2str(nw),'_Raw'])
+                for j = 1:numel(artifactData(1).electrodeNames)
+                    %find the index in our full list of electrodes, that
+                    %corresponds to the channel j in artifactData(i)
+                    posIdx=find(strcmp(eList,artifactData(1).electrodeNames{j}));
+                    hold on
+                    if chList(posIdx)==stimChanList(nc)
+                        % make plot
+                        inputData.filtered = 0;
+                        inputData.plotAllChannels = 0;  
+                        plotArtifacts_singleParameter(inputData,artifactData,j,stimChanList(nc),nw);
+                    end
+                end
+            end
+        end
+
+        % make filtered plot of stimulated channel
+        for nc = 1:numChans
+            for nw = 1:numWaves
+                outputFigures(end+1) = figure;
+                set(outputFigures(end),'Name',['StimOnCH-',num2str(stimChanList(nc)),'Wave-',num2str(nw),'_Filtered'])
+                for j = 1:numel(artifactData(1).electrodeNames)
+                    %find the index in our full list of electrodes, that
+                    %corresponds to the channel j in artifactData(i)
+                    posIdx=find(strcmp(eList,artifactData(1).electrodeNames{j}));
+                    hold on
+                    if chList(posIdx)==stimChanList(nc)
+                        % make plot
+                        inputData.filtered = 1;
+                        inputData.plotAllChannels = 0;
+                        plotArtifacts_singleParameter(inputData,artifactData,j,stimChanList(nc),nw);
+                    end
+                end
+            end
+        end
+    else % make plots for each artifactData, assume cathodal and anodal interleaved
+        % make a 10x10 figure with the response for each response channel
+        for i = 1:numel(artifactData)
+            outputFigures(end+1)=figure;
+            set(outputFigures(end),'Name',['StimOnCH-',num2str(artifactData(i).stimChannel),'_AllChannels_FileNum-',num2str(i)])
+            numPlotPixels=1200;
+            set(outputFigures(end),'Position',[100 100 numPlotPixels numPlotPixels]);
+            paperSize=0.2+numPlotPixels/get(outputFigures(end),'ScreenPixelsPerInch');
+            set(outputFigures(end),'PaperSize',[paperSize,paperSize]);
+            for j = 1:numel(artifactData(i).electrodeNames)
+                %find the index in our full list of electrodes, that
+                %corresponds to the channel j in artifactData(i)
+                posIdx=find(strcmp(eList,artifactData(i).electrodeNames{j}));
+                eRow=posList(posIdx,1);
+                eCol=posList(posIdx,2);
+                h=subplot(10,10,10*(eRow-1)+eCol);
+                hold on
+                if chList(posIdx)==artifactData(i).stimChannel
+                    %put a purple box around the stim channel:
+                    stimBoxX=[2,.95*size(artifactData(i).artifact,3),.95*size(artifactData(i).artifact,3),2,2];
+                    stimBoxY=[-inputData.plotRange*.95*1000,-inputData.plotRange*.95*1000,inputData.plotRange*.95*1000,inputData.plotRange*.95*1000,-inputData.plotRange*.95*1000];
+                    plot(stimBoxX,stimBoxY,'mp-','linewidth',3)
+                end
+                if find(chList(posIdx)==inputData.badChList,1,'first')
+                   %put a red X through known bad channels:
+                   badMarkX=[2,.95*size(artifactData(i).artifact,3)];
+                   badMarkY=[-inputData.plotRange*.95*1000,inputData.plotRange*.95*1000];
+                   plot(badMarkX,badMarkY,'rp-','lineWidth',3)
+                   badMarkX=[2,.95*size(artifactData(i).artifact,3)];
+                   badMarkY=[inputData.plotRange*.95*1000,-inputData.plotRange*.95*1000];
+                   plot(badMarkX,badMarkY,'rp-','lineWidth',3)
+                end
+                inputData.filtered = 0;
+                inputData.plotAllChannels = 1;
+                plotArtifacts_cathodalAnodal(inputData,artifactData,i,j);
+            end
+        end
+
+        % make a single figure focusing on the stimulated channel
+        for i = 1:numel(artifactData)
+            outputFigures(end+1)=figure;
+            set(outputFigures(end),'Name',['StimOnCH-',num2str(artifactData(i).stimChannel),'_Raw_FileNum-',num2str(i)])
+            for j = 1:numel(artifactData(i).electrodeNames)
+                posIdx=find(strcmp(eList,artifactData(i).electrodeNames{j}));
+                if(chList(posIdx)==artifactData(i).stimChannel)
+                    inputData.filtered = 0;
+                    inputData.plotAllChannels = 0;
                     plotArtifacts_cathodalAnodal(inputData,artifactData,i,j);
                 end
             end
+        end
 
-            % make a single figure focusing on the stimulated channel
-            for i = 1:numel(artifactData)
-                outputFigures(end+1)=figure;
-                set(outputFigures(end),'Name',['StimOnCH-',num2str(artifactData(i).stimChannel),'_Raw_FileNum-',num2str(i)])
-                for j = 1:numel(artifactData(i).electrodeNames)
-                    posIdx=find(strcmp(eList,artifactData(i).electrodeNames{j}));
-                    if(chList(posIdx)==artifactData(i).stimChannel)
-                        inputData.filtered = 0;
-                        inputData.plotAllChannels = 0;
-                        plotArtifacts_cathodalAnodal(inputData,artifactData,i,j);
-                    end
-                end
-            end
-
-            % make a single figure focusing on the stimulated channel --
-            % filtered
-            for i = 1:numel(artifactData)
-                outputFigures(end+1)=figure;
-                set(outputFigures(end),'Name',['StimOnCH-',num2str(artifactData(i).stimChannel),'_Filtered_FileNum-',num2str(i)])
-                for j = 1:numel(artifactData(i).electrodeNames)
-                    posIdx=find(strcmp(eList,artifactData(i).electrodeNames{j}));
-                    if chList(posIdx)==artifactData(i).stimChannel
-                        % plot data
-                        inputData.filtered = 1;
-                        inputData.plotAllChannels = 0;
-                        plotArtifacts_cathodalAnodal(inputData,artifactData,i,j);
-                    end
+        % make a single figure focusing on the stimulated channel --
+        % filtered
+        for i = 1:numel(artifactData)
+            outputFigures(end+1)=figure;
+            set(outputFigures(end),'Name',['StimOnCH-',num2str(artifactData(i).stimChannel),'_Filtered_FileNum-',num2str(i)])
+            for j = 1:numel(artifactData(i).electrodeNames)
+                posIdx=find(strcmp(eList,artifactData(i).electrodeNames{j}));
+                if chList(posIdx)==artifactData(i).stimChannel
+                    % plot data
+                    inputData.filtered = 1;
+                    inputData.plotAllChannels = 0;
+                    plotArtifacts_cathodalAnodal(inputData,artifactData,i,j);
                 end
             end
         end
     end
 
-    if(inputData.saveFigures == 0)
+    if(isfield(inputData,'saveFigures') && ~inputData.saveFigures)
         outputFigures = [];
+    elseif(isfield(inputData,'presavePNG') &&inputData.presavePNG)
+         for i=1:numel(outputFigures)
+            %save a png of the figure
+            fname=get(outputFigures(i),'Name');
+            if isempty(fname)
+                fname=strcat('Figure_',num2str(double(H)));
+            end
+            fname(fname==' ')='_';%replace spaces in name for saving
+            print('-dpng',outputFigures(i),strcat(folderpath,['Raw_Figures' filesep 'PNG' filesep],fname,'.png'))
+        end
+        outputFigures=[];
     end
 end
 
