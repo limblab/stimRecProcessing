@@ -1,9 +1,11 @@
 clear%% process stimulation artifacts:
 pwd = cd;
-folderpath= 'R:\data\Han_13B1\Raw\Han_20180304_chic201802\normalSetup\';
-% inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Mihili 12A3\Mihili Left PMd SN 6251-001460.cmp'; % chips mapfile location
+inputData.folderpath= 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\'; % must have \ at the end
+fileList = dir([inputData.folderpath,'*.ns5']); % must be an ns5
+inputData.filename = fileList(1).name;
 inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
 % inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
+
 inputData.task='taskCO';
 inputData.ranBy='ranByJoseph'; 
 inputData.array1='arrayLeftS1'; 
@@ -12,19 +14,13 @@ inputData.monkey='monkeyChips';
 inputData.dukeBoardChannel = -1;
 inputData.dukeBoardLabel = 'ainp15';
 
-inputData.issueExists = 0;
-
 inputData.badChList=0;
 inputData.interpulse=.000053;%in s
 inputData.pWidth1=.0002;
 inputData.pWidth2=.0002;
-% functionName='processStimArtifactData';
-MERGE_FILES = 0;
-inputData.noSyncIntended = 0;
-inputData.templateSubtract = 0;
-inputData.templateSize = 99/1000;
 
-inputData.blankPeriod = floor(0.0*30);
+% functionName='processStimArtifactData';
+
 inputData.artifactDataTime = 10; % in ms
 
 inputData.preOffset = 22;
@@ -34,9 +30,9 @@ inputData.moreThanOnePulsePerWave = 0;
 inputData.numPulses = 10;
 inputData.pulseFrequency = 100;
 
-
 inputData.thresholdMult = 3.5;
 inputData.artifactSkip = 1;
+inputData.maxAmplitude = 1000; % in uV
 
 inputData.maxChunkLength = 5000*30; % 5 second chunk maximum
 %% generates _cds and _nevData files, also writes nev file

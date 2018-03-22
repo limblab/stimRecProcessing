@@ -1,68 +1,204 @@
-function [outputFigures, outputData ] = processStimArtifactData(folderpath, inputData )
-    %script to load stimulation files and generate perievent plots of 30khz
-    %data. Formatted to work with runDataProcessing
-    outputFigures = [];
-    outputData=[];
-    %get list of all files in the folder:
-    templateSize = inputData.templateSize*30000;
-    noSync = 0;
-    noSyncIntended = inputData.noSyncIntended;
+function [outputFigures, outputData ] = filterAndThresholdData(inputData)
+    % function that loads a file and filters/thresholds the data
     
-    if ~strcmp(folderpath(end),filesep)
-        folderpath=[folderpath,filesep];
+    outputData=[];
+    
+    % check to see if file exists
+    if(~isfield(inputData,'filename') || ~isfield(inputData,'folderpath') || exist([inputData.folderpath,inputData.filename],'file')==0)
+        error('file was not provided or does not exist');
     end
-    cd(folderpath);
-    if(any(isfield(inputData,'fileListExtension')))
-        fileList=dir(inputData.fileListExtension);
-    else
-        fileList=dir('*.nev');
+    
+    % check to see if file is an ns5
+    if(strcmpi(inputData.filename(end-2:end),'ns5') == 0)
+        error('file is not an ns5');
+    end
+    
+    % load map file
+    if(~isfield(inputData,'mapFile'))
+        error('no map file')
     end
     mapData=loadMapFile(inputData.mapFile(8:end));
+    
+    % merge map file labels with array name <- probably not necessary
     for i=1:size(mapData,1)
         mapData.label{i}=[inputData.array1(6:end),mapData.label{i}];
     end
+    
     %establish trackers for information that is common to all files:
     eList={};
     posList=[];
     chList=[];
+    
     % build filter
-    [bFilter,aFilter] = butter(6,500/(30000/2),'high');
-    filterParams.b = bFilter;
-    filterParams.a = aFilter;
-    filterParams.order = 6;
-    filterParams.type = 'high';
+    if(~isfield(inputData,'filterParams'))
+        [bAcausal,aAcausal] = butter(6,500/(30000/2),'high');
+        filterParams.b = bAcausal;
+        filterParams.a = aAcausal;
+        filterParams.order = 6;
+        filterParams.type = 'high';
+    else
+        filterParams = inputData.filterParams;
+        bAcausal = inputData.filterParams.b;
+        aAcausal = inputData.filterParams.a;
+    end
+    
+    % get threshold multiplier
+    if(~isfield(inputData,'thresholdMult'))
+        error('no threshold multiplier provided');
+    end
     thresholdMult = inputData.thresholdMult;
+    
     % variables to store spike information   
-%     preOffset = 27;
-%     postOffset = 20;
+    if(~isfield(inputData,'preOffset'))
+        error('no pre spike offset provided')
+    end
     preOffset = inputData.preOffset;
+    if(~isfield(inputData,'postOffset'))
+        error('no post spike offset provided');
+    end
     postOffset = inputData.postOffset;
-    maxAmplitude = 700; %uV
+    if(~isfield(inputData,'maxAmplitude'))
+        error('no maximum spike amplitude provided');
+    end
+    maxAmplitude = inputData.maxAmplitude; %uV
     lengthWave = preOffset+postOffset+1;
     numZeros = 200;
     
     % cds and extraseconds for merge purposes
-    cds = [];
     nevData = [];
     rawData = [];
+    
+    % set up artifact data
+    if(~isfield(inputData,'artifactDataTime'))
+        error('no time specified for the artifact data');
+    end
     artifactDataTime = inputData.artifactDataTime; % in ms
     artifactData.t = zeros(1000,1);
     artifactDataIndex = 1;
      
-    for i=1:numel(fileList)
-        %% load file
-        disp(['working on:'])
-        disp(fileList(i).name)
+    %% load file
+    disp(['working on:', inputData.filename])
         
-        cdsTemp=commonDataStructure();
-
-        cdsTemp.file2cds([folderpath,fileList(i).name],inputData.ranBy,inputData.array1,inputData.monkey,inputData.lab,inputData.task,inputData.mapFile);
+    NSx=openNSx('read', [inputData.folderpath,inputData.filename]);
+    % remove needless spaces from the NSx.ElectrodesInfo.Label field
+    for j = 1:numel(NSx.ElectrodesInfo)
+        NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
+        NSx.ElectrodesInfo(j).Label(double(NSx.ElectrodesInfo(j).Label)==0) = []; % remove null values           
+    end
+    % get channels (electrode Id < 97)
+    chanMask = [NSx.ElectrodesInfo.ElectrodeID]<97;
+    % preset artifactData.artifact size based on num channels, subtract 1
+    % for the time column
+    artifactData.artifact = zeros(1000,sum(chanMask),artifactDataTime*2*30000/1000);
         
-        % set artifactData.artifact size based on num channels, subtract 1
-        % for the time column
-        artifactData.artifact = zeros(1000,size(cdsTemp.lfp,2)-1,artifactDataTime*2*30000/1000);
+    %% find sync signal in analog data
+    useSync=true;
+    NSx_syncIdx=[];
+    syncIdx=[];
 
-        %% load waveformsSent file if it exists or make one if it does not exist
+    if(~isfield(inputData,'useSyncLabel') || isempty(inputData.useSyncLabel))
+    %look for sync under the label sync
+        for j=1:numel(NSx.ElectrodesInfo)
+            syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'sync'));
+            if ~isempty(syncIdx)
+                NSx_syncIdx=j;
+                syncName='sync';
+            end
+        end
+        %if it wasn't called sync, try for matt's 'StimTrig' label:
+        if isempty(syncIdx)
+            for j=1:numel(NSx.ElectrodesInfo)
+                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'StimTrig'));
+                if ~isempty(syncIdx)
+                    NSx_syncIdx=j;
+                    syncName='StimTrig';
+                end
+            end
+        end
+        %if we didn't find a sync channel, just look for ainp16
+        if isempty(syncIdx)
+            for j=1:numel(NSx.ElectrodesInfo)
+                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'ainp16'));
+                if ~isempty(syncIdx)
+                    useSync=false;
+                    NSx_syncIdx=j;
+                    syncName='ainp16';
+                end
+            end
+        end
+
+    else
+        useSync=inputData.useSyncLabel;
+        if useSync
+            %find aIdx:
+            for j=1:numel(NSx.ElectrodesInfo)
+                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'sync'));
+                if ~isempty(syncIdx)
+                    NSx_syncIdx=j;
+                    syncName='sync';
+                end
+            end
+        else
+            for j=1:numel(NSx.ElectrodesInfo)
+                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'ainp16'));
+                if ~isempty(syncIdx)
+                    useSync=false;
+                    NSx_syncIdx=j;
+                    syncName='ainp16';
+                end
+            end
+        end
+    end
+    
+    %% if recover presync, append data, store where data was combined
+    outputData.preSyncTimes = [];
+    outputData.preSyncPoints = [];
+    data = [];
+    if(isfield(inputData,'recoverPreSync') && inputData.recoverPreSync)
+        for NSx_idx = 1:numel(NSx.Data)
+            data = [data,NSx.Data{NSx_idx}(:,:)];
+        end
+        
+        NSx.Data = {};
+        NSx.Data{1} = data;
+        clear data
+        
+        outputData.preSyncTimes = NSx.MetaTags.DataDurationSec;
+        outputData.preSyncPoints = NSx.MetaTags.DataPoints;
+        
+    else
+        
+    end
+    
+    
+    %% use sync to get stim times:
+    artifactDataPre.stimOn=find(diff(cdsTemp.analog{NSx_syncIdx}.(syncName)-mean(cdsTemp.analog{NSx_syncIdx}.(syncName))>3)>.5);
+    stimOff=find(diff(cdsTemp.analog{NSx_syncIdx}.(syncName)-mean(cdsTemp.analog{NSx_syncIdx}.(syncName))<-3)>.5);
+    artifactDataPre.stimOn = artifactDataPre.stimOn;
+    artifactDataPre.stimOff=nan(size(artifactDataPre.stimOn));
+    for j=1:numel(artifactDataPre.stimOn)
+        if j<numel(artifactDataPre.stimOn)
+            next=artifactDataPre.stimOn(j+1);
+        else
+            next=numel(cdsTemp.analog{NSx_syncIdx}.(syncName));
+        end
+        offIdx=stimOff(find((stimOff>artifactDataPre.stimOn(j)& stimOff<next),1,'first'));
+        if ~isempty(offIdx)
+            artifactDataPre.stimOff(j)=offIdx;
+        end
+    end
+        
+    %% fix stim times if more than one pulse sent per wave
+    if(inputData.moreThanOnePulsePerWave)
+        stimOnTemp = [];
+        for stimIdx = 1:numel(artifactDataPre.stimOn)
+            stimOnTemp = [stimOnTemp; artifactDataPre.stimOn(stimIdx) + 1/inputData.pulseFrequency*30000*(0:1:(inputData.numPulses-1))'];
+        end
+        artifactDataPre.stimOn = stimOnTemp;
+        artifactDataPre.stimOff = artifactDataPre.stimOn + 2;
+    end
+    
+        %% make waveforms sent file if it does not exist
         underscoreIdx = find(fileList(i).name=='_');
         [~,fname,~] = fileparts(fileList(i).name);
         waveformFilename = strcat(fileList(i).name(1:underscoreIdx(end)),'waveformsSent',fname(underscoreIdx(end):end),'.mat');
@@ -70,136 +206,6 @@ function [outputFigures, outputData ] = processStimArtifactData(folderpath, inpu
             load(waveformFilename)
         end
         
-        %% find sync signal in analog data
-        useSync=true;
-        aIdx=[];
-        syncIdx=[];
-        noAnalog = 0; % unless Joe screws up
-        
-        if isempty(inputData.useSyncLabel) && isempty(cdsTemp.analog) % Joe really fucked up, try to find stim times from artifact
-            % stimulation artifact should be present at the site of
-            % stimulation. detect artifact, move back in time a bit and
-            % there we go
-            noAnalog = 1;
-            artifactDataPre.stimOn = [];
-            cdsTempLFP = cdsTemp.lfp{:,:}; % move to a matrix because its faster
-            stimChan = 42;
-%             [bHigh,aHigh] = butter(2,100/(30000/2),'high');
-%             cdsTempLFPData = cdsTemp.lfp{:,stimChan+1};
-            for stimIdx = 1:numel(waveforms.chanSent)
-                % find artifact in the stimulated channel at least
-                % 100ms after the previous artifact
-                if(stimIdx == 1)
-                    railIdx = find(abs(cdsTempLFP(:,stimChan+1)) > 2500);
-                else
-                    railIdx = find(abs(cdsTempLFP(:,stimChan+1)) > 2500);
-                    railIdx = railIdx(railIdx > artifactDataPre.stimOn(end) + 30*98);
-                end
-                
-                % find time where data is between -500 and 500 then move back in time that much or at most 10 data points
-
-                if(~isempty(railIdx))
-                    railIdx = railIdx(1);
-                    
-                    notArtifact = find(abs(cdsTempLFP(railIdx-30:railIdx,stimChan+1)) < 2000);
-                    artifactDataPre.stimOn(end+1,1) = max(railIdx-7,railIdx-30+max(find(notArtifact(1:end-2) == notArtifact(2:end-1)-1 & notArtifact(2:end-1) == notArtifact(3:end)-1)))-2;
-                end
-                
-            end
-            
-            artifactDataPre.stimOff = artifactDataPre.stimOn + 20;
-        elseif isempty(inputData.useSyncLabel)
-        %look for sync under the label sync
-            for j=1:numel(cdsTemp.analog)
-                syncIdx=find(strcmp(cdsTemp.analog{j}.Properties.VariableNames,'sync'));
-                if ~isempty(syncIdx)
-                    aIdx=j;
-                    syncName='sync';
-                end
-            end
-            %if it wasn't called sync, try for matt's 'StimTrig' label:
-            if isempty(syncIdx)
-                for j=1:numel(cdsTemp.analog)
-                    syncIdx=find(strcmp(cdsTemp.analog{j}.Properties.VariableNames,'StimTrig'));
-                    if ~isempty(syncIdx)
-                        aIdx=j;
-                        syncName='StimTrig';
-                    end
-                end
-            end
-            %if we didn't find a sync channel, just look for ainp16
-            if isempty(syncIdx)
-                for j=1:numel(cdsTemp.analog)
-                    syncIdx=find(strcmp(cdsTemp.analog{j}.Properties.VariableNames,'ainp16'));
-                    if ~isempty(syncIdx)
-                        useSync=false;
-                        aIdx=j;
-                        syncName='ainp16';
-                    end
-                end
-            end
-            if isempty(aIdx)
-%                 error('processStimArtifact:cantFindSync','couldnt find a sync signal')
-                noSync = 1;
-            end
-        else
-            useSync=inputData.useSyncLabel;
-            if useSync
-                %find aIdx:
-                for j=1:numel(cdsTemp.analog)
-                    syncIdx=find(strcmp(cdsTemp.analog{j}.Properties.VariableNames,'sync'));
-                    if ~isempty(syncIdx)
-                        aIdx=j;
-                        syncName='sync';
-                    end
-                end
-            else
-                for j=1:numel(cdsTemp.analog)
-                    syncIdx=find(strcmp(cdsTemp.analog{j}.Properties.VariableNames,'ainp16'));
-                    if ~isempty(syncIdx)
-                        useSync=false;
-                        aIdx=j;
-                        syncName='ainp16';
-                    end
-                end
-            end
-        end
-        %% use sync to get stim times:
-        if(noAnalog)
-            % do nothing. This is taken care of above. Stupid Joe
-        elseif(noSync && noSyncIntended)
-            artifactDataPre.stimOn = [];
-        elseif(noSync)
-            artifactDataPre.stimOn = [];
-        else
-            artifactDataPre.stimOn=find(diff(cdsTemp.analog{aIdx}.(syncName)-mean(cdsTemp.analog{aIdx}.(syncName))>3)>.5);
-            stimOff=find(diff(cdsTemp.analog{aIdx}.(syncName)-mean(cdsTemp.analog{aIdx}.(syncName))<-3)>.5);
-            artifactDataPre.stimOn = artifactDataPre.stimOn;
-            artifactDataPre.stimOff=nan(size(artifactDataPre.stimOn));
-            for j=1:numel(artifactDataPre.stimOn)
-                if j<numel(artifactDataPre.stimOn)
-                    next=artifactDataPre.stimOn(j+1);
-                else
-                    next=numel(cdsTemp.analog{aIdx}.(syncName));
-                end
-                offIdx=stimOff(find((stimOff>artifactDataPre.stimOn(j)& stimOff<next),1,'first'));
-                if ~isempty(offIdx)
-                    artifactDataPre.stimOff(j)=offIdx;
-                end
-            end
-        end
-        
-        
-        %% fix stim times if more than one pulse sent per wave
-        if(inputData.moreThanOnePulsePerWave)
-            stimOnTemp = [];
-            for stimIdx = 1:numel(artifactDataPre.stimOn)
-                stimOnTemp = [stimOnTemp; artifactDataPre.stimOn(stimIdx) + 1/inputData.pulseFrequency*30000*(0:1:(inputData.numPulses-1))'];
-            end
-            artifactDataPre.stimOn = stimOnTemp;
-            artifactDataPre.stimOff = artifactDataPre.stimOn + 2;
-        end
-        %% make waveforms sent file if it does not exist
         if(~exist(waveformFilename)~=0 && ~(noSync || noSyncIntended))
             [~,fname,~] = fileparts(fileList(i).name);
             waveformFilename = strcat(fileList(i).name(1:underscoreIdx(end)),'waveformsSent',fname(underscoreIdx(end):end),'.mat');
@@ -387,7 +393,7 @@ function [outputFigures, outputData ] = processStimArtifactData(folderpath, inpu
                                 stimData = cdsTempLFP(artifactDataPre.stimOn(stimuli-1):artifactDataPre.stimOn(stimuli),ch);
                                 stimChan = find(unique(waveforms.chanSent) == waveforms.chanSent(stimuli-1));
                                 stimDataTemp = [stimData(:,1);zeros(numZeros,1)];
-                                stimDataTemp = fliplr(filter(bFilter,aFilter,fliplr(stimDataTemp')))';
+                                stimDataTemp = fliplr(filter(bAcausal,aAcausal,fliplr(stimDataTemp')))';
                                 stimDataTemp = stimDataTemp(1:end-numZeros,1);
                                 templateAll(stimChan,ch-1,:) = squeeze(templateAll(stimChan,ch-1,:)) + (stimDataTemp(1:templateSize,1)/numStims(stimChan));
                             catch
@@ -437,7 +443,7 @@ function [outputFigures, outputData ] = processStimArtifactData(folderpath, inpu
                 try
                     stimDataTemp = [stimData(:,1);mean(stimData(end-20:end,1))*ones(numZeros,1)];
                     numPoints = numPoints + numel(stimData);
-                    stimDataTemp = fliplr(filter(bFilter,aFilter,fliplr(stimDataTemp')))';
+                    stimDataTemp = fliplr(filter(bAcausal,aAcausal,fliplr(stimDataTemp')))';
                     stimDataTemp = stimDataTemp(1:end-numZeros,1);
                     thresholdAll(ch-1) = thresholdAll(ch-1) + sum(stimDataTemp.^2);
                 catch
@@ -480,7 +486,7 @@ function [outputFigures, outputData ] = processStimArtifactData(folderpath, inpu
                 % filter backwards on all channels and threshold
                 stimDataTemp = [stimData(:,ch);mean(stimData(end-min(length(stimData(:,ch))-1,20):end,ch))*ones(numZeros,1)];
                 
-                stimDataTemp = fliplr(filter(bFilter,aFilter,fliplr(stimDataTemp')))';
+                stimDataTemp = fliplr(filter(bAcausal,aAcausal,fliplr(stimDataTemp')))';
                 stimData(:,ch) = stimDataTemp(1:end-numZeros);
                 if(inputData.templateSubtract && stimIdx~=1)
                     stimChan = find(unique(waveforms.chanSent) == waveforms.chanSent(stimIdx-1));
@@ -667,19 +673,18 @@ function [outputFigures, outputData ] = processStimArtifactData(folderpath, inpu
             end
         end
         
-        cds.meta.duration = cds.meta.duration + cdsTempDuration;
+%         cds.meta.duration = cds.meta.duration + cdsTempDuration;
        
-    end
-    cds.units = [];
-    cds.artifactData = artifactData;
-    cds.rawData = rawData;
-    if(any(isfield(inputData,'stimsPerBump')))
-        cds.stimsPerBump = inputData.stimsPerBump;
-    else
-        cds.stimsPerBump = -1; % usually means no bump, can also mean that the user forgot to input stimsPerBump
-    end
-    cds.filter = filterParams;
-    cds.processed = 0;
-    save(strcat(fileList(1).name(1:end-4),'_cds.mat'),'cds','-v7.3');
-    save(strcat(fileList(1).name(1:end-4),'_nevData.mat'),'nevData','-v7.3');
+%     cds.units = [];
+%     cds.artifactData = artifactData;
+%     cds.rawData = rawData;
+%     if(any(isfield(inputData,'stimsPerBump')))
+%         cds.stimsPerBump = inputData.stimsPerBump;
+%     else
+%         cds.stimsPerBump = -1; % usually means no bump, can also mean that the user forgot to input stimsPerBump
+%     end
+%     cds.filter = filterParams;
+%     cds.processed = 0;
+%     save(strcat(fileList(1).name(1:end-4),'_cds.mat'),'cds','-v7.3');
+%     save(strcat(fileList(1).name(1:end-4),'_nevData.mat'),'nevData','-v7.3');
 end

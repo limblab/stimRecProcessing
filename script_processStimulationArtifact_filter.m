@@ -6,7 +6,7 @@
 
 pwd = cd;
 % folderpath='C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\Han_20180310_chic201802\';
-folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\Han_20180311_stimswitch\';
+folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\Han_20180318_stimSwitchFastSettleOn\';
 functionName='processStimArtifact_filter'; % includes acausal filtered data
 
 %%
