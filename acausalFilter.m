@@ -1,11 +1,13 @@
 function [f] = acausalFilter(data)
     % data is an MxN matrix, M = data, N = number of artifacts (channels,
     % repeated stimuli, etc.). Data has to be along the first dimension
-    
+    numPad = 300;
     % make filter
     [b,a] = butter(6,[500]/(30000/2),'high');
     % pad data
-    data = [zeros(200,size(data,2));data;zeros(200,size(data,2))];
+    data = [mean(data(1:100,:))+zeros(numPad,size(data,2));...
+        data;...
+        mean(data(end-100:end,:))+zeros(numPad,size(data,2))];
     % acausal filter
     f = fliplr(filter(b,a,fliplr(data')')')';
     
@@ -13,6 +15,6 @@ function [f] = acausalFilter(data)
 %     f = fliplr(filter(b,a,fliplr(f')')')';
 
     % remove padding
-    f = f(201:end-200,:);
+    f = f(numPad+1:end-numPad,:);
 end
 
