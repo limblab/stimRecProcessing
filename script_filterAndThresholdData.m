@@ -1,15 +1,15 @@
 %% this script filters and thresholds stimulation data
     clear
     pwd = cd;
-%     inputData.folderpath= 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\'; % must have \ at the end
-    inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
+    inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_20180331_doublePulse\'; % must have \ at the end
+%     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
     % inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
 
-    inputData.task='taskCO';
+    inputData.task='taskCObump';
     inputData.ranBy='ranByJoseph'; 
     inputData.array1='arrayLeftS1'; 
-    inputData.monkey='monkeyChips';
+    inputData.monkey='monkeyHan';
     inputData.labnum = 6;
     
     inputData.dukeBoardChannel = -1;
@@ -71,7 +71,8 @@
     disp('writing nev file')
 
     packetWidth = 104;
-    filename = strcat(fileList(1).name(1:end-4),'_merged');
+    underscoreIdx = strfind(fileList(1).name,'_');
+    filename = strcat(fileList(1).name(1:underscoreIdx(2)),'_merged');
     mapFilename = inputData.mapFile(8:end);
     comments = '';
     writeNEV(nevDataAll, packetWidth, filename, mapFilename, comments )
@@ -93,7 +94,7 @@
     
     NEV_data = openNEV('read', [inputData.folderpath NEVname],'nosave');
 
-    for f = 1:numel(outputDataFileList)
+    for f = 1:1%numel(outputDataFileList)
         % split back into individual files
         
         % undo any duration adding do to resets

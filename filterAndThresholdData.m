@@ -91,8 +91,23 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     % get channels (electrode Id < 97)
     chanMask = [NSx.ElectrodesInfo.ElectrodeID]<97;
+    chanMapping = [NSx.ElectrodesInfo.ElectrodeID];    
+
+    % map duke board channel to correct electrode, remove electrode from
+    % chanMask
+    if(isfield(inputData,'dukeBoardChannel') && isfield(inputData,'dukeBoardLabel') && inputData.dukeBoardChannel > 0)
+        for j = 1:numel(NSx.ElectrodesInfo)
+            if(strcmpi(NSx.ElectrodesInfo(j).Label,inputData.dukeBoardLabel))
+                % make chanMask and chanMapping correct
+                chanMask(j) = 1;
+                chanMapping(j) = inputData.dukeBoardChannel;
+                % remove data recorded on the electrode
+                elecIdx = find([NSx.ElectrodesInfo.ElectrodeID] == inputData.dukeboardChannel);
+                chanMask(elecIdx) = 0;
+            end
+        end
+    end
     
-        
     %% find sync signal in analog data
     useSync=true;
     NSx_syncIdx=[];
@@ -240,11 +255,9 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     neuralLFP = zeros(sum(chanMask)+1,size(NSx.Data{NSx_dataIdx},2)); % preallocate
     
     neuralLFP(1,:) = roundTime((0:size(neuralLFP,2)-1)/NSx.MetaTags.SamplingFreq) + NSx.MetaTags.Timestamp(NSx_dataIdx)/NSx.MetaTags.TimeRes; % time stamps
-    chCounter = 2;
     for ch = 1:size(NSx.Data{NSx_dataIdx},1)
         if(chanMask(ch))
-            neuralLFP(chCounter,:) = double(NSx.Data{NSx_dataIdx}(ch,:));
-            chCounter = chCounter + 1;
+            neuralLFP(chanMapping(ch)+1,:) = double(NSx.Data{NSx_dataIdx}(ch,:));
         end
     end
     %% get thresholds for each channel based on non stim data
