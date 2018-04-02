@@ -152,26 +152,25 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         end
     end
     
-    %% if recover presync, append data, store where data was combined
+    %% append data, store where data was combined
     outputData.preSyncTimes = [];
     outputData.preSyncPoints = [];
     data = [];
-    if(isfield(inputData,'recoverPreSync') && inputData.recoverPreSync)
-        for NSx_idx = 1:numel(NSx.Data)
+    for NSx_idx = 1:numel(NSx.Data)
+        if(NSx_idx == 1)
+            data = NSx.Data{NSx_idx};
+        else
             data = [data,NSx.Data{NSx_idx}(:,:)];
-        end
-        
-        NSx.Data = {};
-        NSx.Data{1} = data;
-        clear data
-        
-        outputData.preSyncTimes = NSx.MetaTags.DataDurationSec;
-        outputData.preSyncPoints = NSx.MetaTags.DataPoints;
-        NSx_dataIdx = 1;
-    else
-        NSx_dataIdx = numel(NSx.Data);
+        end 
     end
-    outputData.duration = size(NSx.Data{NSx_dataIdx},2)/30000 + 10;
+        
+    NSx.Data{1} = data;
+    clear data
+
+    outputData.DataDurationSec = NSx.MetaTags.DataDurationSec;
+    outputData.DataPoints = NSx.MetaTags.DataPoints;
+    NSx_dataIdx = 1;
+    outputData.duration = size(NSx.Data{NSx_dataIdx},2)/30000 + 10; % add 10 to keep a space between files, just in case
 
     
     %% use sync to get stim times:
