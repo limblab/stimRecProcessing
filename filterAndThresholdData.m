@@ -483,6 +483,8 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     outputData.nevData = nevData;
     outputData.rawData = rawData;
     outputData.waveforms = waveforms;
+    outputData.stimInfo = stimulationInformation;
+    
 end
 
 

@@ -84,7 +84,7 @@
 
 %% sort *_merged and call it *_merged-s
 
-%% load in *_merged-s, save the units to each nev file
+%% load in *_merged-s, save the units to each nev file as well as to output data
     disp('started saving unit files')
 
     pwd = cd;
@@ -98,7 +98,7 @@
     for f = 1:numel(outputDataFileList)
         load(outputDataFileList(f).name);
         units = [];
-        disp('here')
+
         % split back into individual files
         unitsIdx = double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll < outputData.duration;
         units.ts = double(NEV_dataAll.Data.Spikes.TimeStamp(unitsIdx))/30000 - durationAll;
@@ -121,7 +121,11 @@
         NEV_dataSingle.Data.Spikes.Unit = units.label;
         
         % save normal nev with a new name
-        saveNEV(NEV_dataSingle,[inputData.folderpath outputDataFileList(f).name(1:end-15), '_spikes.nev'],'noreport');
+        saveNEV(NEV_dataSingle,[inputData.folderpath outputDataFileList(f).name(1:end-15), '_spikesExtracted.nev'],'noreport');
+        
+        % save output data with units
+        outputData.units = units;
+        save(outputDataFileList(f).name,'outputData','-v7.3');
         
         % update duration for splitting files
         durationAll = durationAll + outputData.duration;
@@ -129,10 +133,78 @@
     
     disp('done replacing spike info')
 
-%% combine all .nev files into one
-    
+%% combine all .nev files into one, merge all stim timings into 1 as well
+    pwd = cd;
+    cd(inputData.folderpath);
 
-%% load that file into a cds
-cds = commonDataStructure();
-cds.file2cds([inputData.folderpath 'Chips_20171025_CObump_chanINTERLEAVEDstim_A1-40_1_spikes.nev'],inputData.task,inputData.ranBy,inputData.monkey,inputData.labnum);
+    nevFileList = dirSorted('*_spikes.nev');
+    outputDataFileList = dirSorted('*_outputData.mat');
+    
+    NEV_all = [];
+    stimInfo = [];
+    
+    for nf = 1:numel(nevFileList)
+        disp(num2str(nf))
+        NEV_single = openNEV('read',[inputData.folderpath nevFileList(nf).name],'nosave');
+        load(outputDataFileList(nf).name);
+        
+        if(nf == 1)
+            NEV_all = NEV_single;
+            NEV_all.Filename = [nevFileList(1).name(1:underscoreIdx(2)),'_spikes_all_merged.nev'];
+            
+            stimInfo = outputData.stimInfo;
+            stimInfo.chanSent = outputData.waveforms.chanSent;
+            stimInfo.waveSent = outputData.waveforms.waveSent;
+            stimInfo.parameters = outputData.waveforms.parameters;
+            
+            durationAll_points = NEV_single.MetaTags.DataDuration;
+            durationAll_sec = NEV_single.MetaTags.DataDurationSec;
+        else
+            % merge meta info - DataDuration, DataDurationSec
+            NEV_all.MetaTags.DataDuration = NEV_all.MetaTags.DataDuration + NEV_single.MetaTags.DataDuration;
+            NEV_all.MetaTags.DataDurationSec = NEV_all.MetaTags.DataDurationSec + NEV_single.MetaTags.DataDurationSec;
+                        
+            % merge spike data -- update time stamp, combine all matrices
+            NEV_single.Data.Spikes.TimeStamp = NEV_single.Data.Spikes.TimeStamp + durationAll_points;
+            
+            NEV_all.Data.Spikes.TimeStamp = [NEV_all.Data.Spikes.TimeStamp,NEV_single.Data.Spikes.TimeStamp];
+            NEV_all.Data.Spikes.Electrode = [NEV_all.Data.Spikes.Electrode,NEV_single.Data.Spikes.Electrode];
+            NEV_all.Data.Spikes.Unit = [NEV_all.Data.Spikes.Unit,NEV_single.Data.Spikes.Unit];
+            NEV_all.Data.Spikes.Waveform = [NEV_all.Data.Spikes.Waveform,NEV_single.Data.Spikes.Waveform];
+            
+            % merge serial data -- update time stamps, combine all matrices
+            NEV_single.Data.SerialDigitalIO.TimeStamp = NEV_single.Data.SerialDigitalIO.TimeStamp + durationAll_points;
+            NEV_single.Data.SerialDigitalIO.TimeStampSec = NEV_single.Data.SerialDigitalIO.TimeStampSec + durationAll_sec;
+            
+            NEV_all.Data.SerialDigitalIO.TimeStamp = [NEV_all.Data.SerialDigitalIO.TimeStamp, NEV_single.Data.SerialDigitalIO.TimeStamp];
+            NEV_all.Data.SerialDigitalIO.TimeStampSec = [NEV_all.Data.SerialDigitalIO.TimeStampSec, NEV_single.Data.SerialDigitalIO.TimeStampSec];
+            NEV_all.Data.SerialDigitalIO.InsertionReason = [NEV_all.Data.SerialDigitalIO.InsertionReason, NEV_single.Data.SerialDigitalIO.InsertionReason];
+            NEV_all.Data.SerialDigitalIO.UnparsedData = [NEV_all.Data.SerialDigitalIO.UnparsedData; NEV_single.Data.SerialDigitalIO.UnparsedData];
+            
+            % merge stim info from output data to separate merged struct
+            stimInfo.stimOn = [stimInfo.stimOn; outputData.stimInfo.stimOn + durationAll_points];
+            stimInfo.stimOff = [stimInfo.stimOff; outputData.stimInfo.stimOff + durationAll_points];
+            stimInfo.chanSent = [stimInfo.chanSent; outputData.waveforms.chanSent];
+            stimInfo.waveSent = [stimInfo.waveSent; outputData.waveforms.waveSent];
+            
+            % update duration all
+            durationAll_points = durationAll_points + NEV_single.MetaTags.DataDuration;
+            durationAll_sec = durationAll_sec + NEV_single.MetaTags.DataDurationSec;
+        end
+    end
+    
+    NEV_all.MetaTags.DataDuration = durationAll_points;
+    NEV_all.MetaTags.DataDurationSec = durationAll_sec;
+    
+    % rewrite big nev file
+    underscoreIdx = strfind(nevFileList(1).name,'_');
+    saveNEV(NEV_all,[inputData.folderpath nevFileList(1).name(1:underscoreIdx(2)),'_spikes_all_merged.nev'],'noreport');
+    % save merged stim info
+    save([inputData.folderpath nevFileList(1).name(1:underscoreIdx(2)),'_spikes_all_merged_stimInfo.mat'],'stimInfo','-v7.3');
+    
+    disp('done merging into one .nev')
+%% load that file into a cds -- flag to add all of the stim related data
+    cds = commonDataStructure();
+    flist = dir('*spikes_all_merged.nev');
+    cds.file2cds([inputData.folderpath flist(1).name],inputData.task,inputData.ranBy,inputData.monkey,inputData.labnum,'recoverPreSync');
 
