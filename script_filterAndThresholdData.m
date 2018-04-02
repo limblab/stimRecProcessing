@@ -1,7 +1,8 @@
 %% this script filters and thresholds stimulation data
     clear
     pwd = cd;
-    inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_20180331_doublePulse\'; % must have \ at the end
+%     inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_20180331_doublePulse\'; % must have \ at the end
+    inputData.folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
     % inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
@@ -92,18 +93,38 @@
     nevFileList = dirSorted('*_merged-s.NEV*');
     NEVname = nevFileList(1).name; % grab the first one
     
-    NEV_data = openNEV('read', [inputData.folderpath NEVname],'nosave');
-
-    for f = 1:1%numel(outputDataFileList)
+    NEV_dataAll = openNEV('read', [inputData.folderpath NEVname],'nosave');
+    durationAll = 0;
+    for f = 1:numel(outputDataFileList)
+        load(outputDataFileList(f).name);
+        units = [];
+        disp('here')
         % split back into individual files
+        unitsIdx = double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll < outputData.duration;
+        units.ts = double(NEV_dataAll.Data.Spikes.TimeStamp(unitsIdx))/30000 - durationAll;
+        units.elec = NEV_dataAll.Data.Spikes.Electrode(unitsIdx);
+        units.label = NEV_dataAll.Data.Spikes.Unit(unitsIdx);
+        units.waveform = NEV_dataAll.Data.Spikes.Waveform(:,unitsIdx)*0.254;
         
         % undo any duration adding do to resets
-    
+        dataDuration = 0;
+        for resetIdx = 1:numel(outputData.DataDurationSec)
+            units.ts(units.ts > outputData.DataDurationSec(resetIdx)) = units.ts(units.ts > outputData.DataDurationSec(resetIdx)) - outputData.DataDurationSec(resetIdx);
+        end
         % load normal nev
-    
+        NEV_dataSingle = openNEV('read',[inputData.folderpath outputDataFileList(f).name(1:end-15) '.nev'],'nosave');
+        
         % replace spike data in the normal NEV
+        NEV_dataSingle.Data.Spikes.TimeStamp = uint32(units.ts*30000); %uint32
+        NEV_dataSingle.Data.Spikes.Electrode = units.elec;
+        NEV_dataSingle.Data.Spikes.Waveform = units.waveform;
+        NEV_dataSingle.Data.Spikes.Unit = units.label;
         
         % save normal nev with a new name
+        saveNEV(NEV_dataSingle,[inputData.folderpath outputDataFileList(f).name(1:end-15), '_spikes.nev'],'noreport');
+        
+        % update duration for splitting files
+        durationAll = durationAll + outputData.duration;
     end
     
     disp('done replacing spike info')
@@ -112,5 +133,6 @@
     
 
 %% load that file into a cds
-
+cds = commonDataStructure();
+cds.file2cds([inputData.folderpath 'Chips_20171025_CObump_chanINTERLEAVEDstim_A1-40_1_spikes.nev'],inputData.task,inputData.ranBy,inputData.monkey,inputData.labnum);
 
