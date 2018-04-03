@@ -41,7 +41,7 @@
 %% generates _cds and _nevData files, also writes nev file
     cd(inputData.folderpath)
     fileList = dirSorted('*.ns5');
-
+    outputData = [];
     % save input data
     save(strcat(fileList(1).name(1:end-4),'_inputData.mat'),'inputData');
 
@@ -102,12 +102,13 @@
         unitsMask = [];
         
         % split back into individual files
-        unitsMask = double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll < outputData.duration & double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll > 0;
-        units.ts = double(NEV_dataAll.Data.Spikes.TimeStamp(unitsMask))/30000 - durationAll;
-        units.elec = NEV_dataAll.Data.Spikes.Electrode(unitsMask);
-        units.label = NEV_dataAll.Data.Spikes.Unit(unitsMask);
-        units.waveform = NEV_dataAll.Data.Spikes.Waveform(:,unitsMask)*0.254;
-        totalUnits = sum(unitsMask) + totalUnits;
+
+        unitsIdx = double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll < outputData.duration & ...
+            double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll > 0;
+        units.ts = double(NEV_dataAll.Data.Spikes.TimeStamp(unitsIdx))/30000 - durationAll;
+        units.elec = NEV_dataAll.Data.Spikes.Electrode(unitsIdx);
+        units.label = NEV_dataAll.Data.Spikes.Unit(unitsIdx);
+        units.waveform = NEV_dataAll.Data.Spikes.Waveform(:,unitsIdx)*0.254;
         
         % undo any duration adding do to resets
         dataDuration = 0;

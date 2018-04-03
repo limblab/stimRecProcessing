@@ -203,6 +203,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             stimulationInformation.stimOff(j)=offIdx;
         end
     end
+    
         
     %% fix stim times if more than one pulse sent per wave
     if(isfield(inputData,'moreThanOnePulsePerWave') && isfield(inputData,'pulseFrequency') && isfield(inputData,'numPulses') && inputData.moreThanOnePulsePerWave)
@@ -478,6 +479,14 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
 %     save(strcat(inputData.folderpath,inputData.filename(1:end-4),'_rawData.mat'),'rawData','-v7.3');
 %     save(strcat(inputData.folderpath,inputData.filename(1:end-4),'_artifactData.mat'),'artifactData','-v7.3');
 
+    %% ADJUST STIM TIMES BASED ON RESETS IN DATA 
+    % this is done for the spike times later, but the stim on data doesn't
+    % change with it
+    for resetIdx = 1:numel(outputData.DataPoints)
+        stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) = ...
+            stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) - outputData.DataPoints(resetIdx);
+    end
+    
     %% setup output data
     outputData.artifactData = artifactData;
     outputData.nevData = nevData;
