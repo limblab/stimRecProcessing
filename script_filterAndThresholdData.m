@@ -1,8 +1,8 @@
 %% this script filters and thresholds stimulation data
     clear
     pwd = cd;
-%     inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_20180331_doublePulse\'; % must have \ at the end
-    inputData.folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\';
+    inputData.folderpath= 'C:\Users\jts3256\Desktop\chan6\'; % must have \ at the end
+%     inputData.folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
     % inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
@@ -95,16 +95,19 @@
     
     NEV_dataAll = openNEV('read', [inputData.folderpath NEVname],'nosave');
     durationAll = 0;
+    totalUnits = 0;
     for f = 1:numel(outputDataFileList)
         load(outputDataFileList(f).name);
         units = [];
-
+        unitsMask = [];
+        
         % split back into individual files
-        unitsIdx = double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll < outputData.duration;
-        units.ts = double(NEV_dataAll.Data.Spikes.TimeStamp(unitsIdx))/30000 - durationAll;
-        units.elec = NEV_dataAll.Data.Spikes.Electrode(unitsIdx);
-        units.label = NEV_dataAll.Data.Spikes.Unit(unitsIdx);
-        units.waveform = NEV_dataAll.Data.Spikes.Waveform(:,unitsIdx)*0.254;
+        unitsMask = double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll < outputData.duration & double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll > 0;
+        units.ts = double(NEV_dataAll.Data.Spikes.TimeStamp(unitsMask))/30000 - durationAll;
+        units.elec = NEV_dataAll.Data.Spikes.Electrode(unitsMask);
+        units.label = NEV_dataAll.Data.Spikes.Unit(unitsMask);
+        units.waveform = NEV_dataAll.Data.Spikes.Waveform(:,unitsMask)*0.254;
+        totalUnits = sum(unitsMask) + totalUnits;
         
         % undo any duration adding do to resets
         dataDuration = 0;
