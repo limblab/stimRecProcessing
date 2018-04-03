@@ -41,7 +41,7 @@
 %% generates _cds and _nevData files, also writes nev file
     cd(inputData.folderpath)
     fileList = dirSorted('*.ns5');
-
+    outputData = [];
     % save input data
     save(strcat(fileList(1).name(1:end-4),'_inputData.mat'),'inputData');
 
@@ -100,7 +100,8 @@
         units = [];
 
         % split back into individual files
-        unitsIdx = double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll < outputData.duration;
+        unitsIdx = double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll < outputData.duration & ...
+            double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll > 0;
         units.ts = double(NEV_dataAll.Data.Spikes.TimeStamp(unitsIdx))/30000 - durationAll;
         units.elec = NEV_dataAll.Data.Spikes.Electrode(unitsIdx);
         units.label = NEV_dataAll.Data.Spikes.Unit(unitsIdx);
