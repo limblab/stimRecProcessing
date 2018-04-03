@@ -1,7 +1,7 @@
 %% this script filters and thresholds stimulation data
     clear
     pwd = cd;
-    inputData.folderpath= 'C:\Users\jts3256\Desktop\chan6\'; % must have \ at the end
+    inputData.folderpath= 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\'; % must have \ at the end
 %     inputData.folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
@@ -103,15 +103,14 @@
         
         % split back into individual files
 
-        unitsIdx = double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll < outputData.duration & ...
+        unitsMask = double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll < outputData.duration & ...
             double(NEV_dataAll.Data.Spikes.TimeStamp)/30000 - durationAll > 0;
-        units.ts = double(NEV_dataAll.Data.Spikes.TimeStamp(unitsIdx))/30000 - durationAll;
-        units.elec = NEV_dataAll.Data.Spikes.Electrode(unitsIdx);
-        units.label = NEV_dataAll.Data.Spikes.Unit(unitsIdx);
-        units.waveform = NEV_dataAll.Data.Spikes.Waveform(:,unitsIdx)*0.254;
+        units.ts = double(NEV_dataAll.Data.Spikes.TimeStamp(unitsMask))/30000 - durationAll;
+        units.elec = NEV_dataAll.Data.Spikes.Electrode(unitsMask);
+        units.label = NEV_dataAll.Data.Spikes.Unit(unitsMask);
+        units.waveform = NEV_dataAll.Data.Spikes.Waveform(:,unitsMask)*0.254;
         
         % undo any duration adding do to resets
-        dataDuration = 0;
         for resetIdx = 1:numel(outputData.DataDurationSec)
             units.ts(units.ts > outputData.DataDurationSec(resetIdx)) = units.ts(units.ts > outputData.DataDurationSec(resetIdx)) - outputData.DataDurationSec(resetIdx);
         end
@@ -123,6 +122,8 @@
         NEV_dataSingle.Data.Spikes.Electrode = units.elec;
         NEV_dataSingle.Data.Spikes.Waveform = units.waveform;
         NEV_dataSingle.Data.Spikes.Unit = units.label;
+%         NEV_dataSingle.DataDuration = outputData.DataPoints;
+%         NEV_dataSingle.DataDurationSec = outputData.DataDurationSec;
         
         % save normal nev with a new name
         saveNEV(NEV_dataSingle,[inputData.folderpath outputDataFileList(f).name(1:end-15), '_spikesExtracted.nev'],'noreport');

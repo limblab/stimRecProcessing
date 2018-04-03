@@ -83,7 +83,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     %% load file
     disp(['working on:', inputData.filename])
         
-    NSx=openNSx('read', [inputData.folderpath,inputData.filename]);
+    NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double','uv');
     % remove needless spaces from the NSx.ElectrodesInfo.Label field
     for j = 1:numel(NSx.ElectrodesInfo)
         NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
@@ -168,6 +168,8 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     
     %% append data, store where data was combined
+    NSx_trim = NSx; % store a version for future trimming
+    
     outputData.preSyncTimes = [];
     outputData.preSyncPoints = [];
     data = [];
@@ -179,7 +181,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         end 
     end
         
-    NSx.Data{1} = data;
+    NSx.Data{1} = data; % this is so stupid of me
     clear data
 
     outputData.DataDurationSec = NSx.MetaTags.DataDurationSec;
@@ -487,6 +489,20 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) - outputData.DataPoints(resetIdx);
     end
     
+    
+    %% remove channels from ns5, write back as a new ns5 for later use
+    % this is so that the time stamps of non-neural data can be adjusted in the same way
+    % as all of the other data
+    
+    for n = 1:numel(NSx_trim.Data)
+        NSx_trim.Data{n}(chanMask,:) = [];
+    end
+    NSx_trim.ElectrodesInfo(chanMask) = [];
+    for n = 1:numel(NSx_trim.ElectrodesInfo)
+        NSx_trim.ElectrodesInfo(n).Label = pad(NSx_trim.ElectrodesInfo(n).Label,16);
+    end
+    saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
+
     %% setup output data
     outputData.artifactData = artifactData;
     outputData.nevData = nevData;
