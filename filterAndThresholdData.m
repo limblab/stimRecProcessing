@@ -177,14 +177,18 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         if(NSx_idx == 1)
             data = NSx.Data{NSx_idx};
         else
-            data = [data,NSx.Data{NSx_idx}(:,:)];
+            if(NSx.MetaTags.Timestamp(NSx_idx) == 0)
+                data = [data,NSx.Data{NSx_idx}(:,:)];
+            else
+                data = [data,zeros(size(NSx.Data{NSx_idx},1),NSx.MetaTags.Timestamp(NSx_idx)),NSx.Data{NSx_idx}(:,:)];
+            end
         end 
     end
         
     NSx.Data{1} = data; % this is so stupid of me
     clear data
 
-    outputData.DataDurationSec = NSx.MetaTags.DataDurationSec;
+    outputData.DataDurationSec = NSx.MetaTags.DataDurationSec + NSx.MetaTags.Timestamp;
     outputData.DataPoints = NSx.MetaTags.DataPoints;
     NSx_dataIdx = 1;
     outputData.duration = size(NSx.Data{NSx_dataIdx},2)/30000 + 10; % add 10 to keep a space between files, just in case

@@ -1,7 +1,7 @@
 %% this script filters and thresholds stimulation data
     clear
     pwd = cd;
-    inputData.folderpath= 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\'; % must have \ at the end
+    inputData.folderpath= 'D:\Lab\Data\StimArtifact\testingCode\'; % must have \ at the end
 %     inputData.folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
@@ -112,7 +112,9 @@
         
         % undo any duration adding do to resets
         for resetIdx = 1:numel(outputData.DataDurationSec)
-            units.ts(units.ts > outputData.DataDurationSec(resetIdx)) = units.ts(units.ts > outputData.DataDurationSec(resetIdx)) - outputData.DataDurationSec(resetIdx);
+            mask = units.ts > outputData.DataDurationSec(resetIdx);
+            units.ts(mask) = units.ts(mask) - outputData.DataDurationSec(resetIdx);
+            % stim on info is already adjusted
         end
         % load normal nev
         NEV_dataSingle = openNEV('read',[inputData.folderpath outputDataFileList(f).name(1:end-15) '.nev'],'nosave');
@@ -130,7 +132,7 @@
         
         % save output data with units
         outputData.units = units;
-        save(outputDataFileList(f).name,'outputData','-v7.3');
+%         save(outputDataFileList(f).name,'outputData','-v7.3');
         
         % update duration for splitting files
         durationAll = durationAll + outputData.duration;
