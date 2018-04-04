@@ -1,7 +1,7 @@
 %% this script filters and thresholds stimulation data
     clear
     pwd = cd;
-    inputData.folderpath= 'D:\Lab\Data\StimArtifact\testingCode\'; % must have \ at the end
+    inputData.folderpath= 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\'; % must have \ at the end
 %     inputData.folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
