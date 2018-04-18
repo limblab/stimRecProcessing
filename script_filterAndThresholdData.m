@@ -1,16 +1,16 @@
 %% this script filters and thresholds stimulation data
     clear
     pwd = cd;
-    inputData.folderpath= 'D:\Lab\Data\StimArtifact\testingCode\'; % must have \ at the end
+    inputData.folderpath= 'C:\Users\jts3256\Desktop\testingCode\'; % must have \ at the end
 %     inputData.folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
-    inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
-    % inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
+%     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
+    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
 
     inputData.task='taskCObump';
     inputData.ranBy='ranByJoseph'; 
     inputData.array1='arrayLeftS1'; 
-    inputData.monkey='monkeyHan';
+    inputData.monkey='monkeyChips';
     inputData.labnum = 6;
     
     inputData.dukeBoardChannel = -1;
@@ -82,7 +82,7 @@
     disp('DONE -- CAN CONTINUE')
     warning('on')
 
-%% sort *_merged and call it *_merged-s
+%% sort *_merged and call it *_merged-s, rename ns1 as well (?)
 
 %% load in *_merged-s, save the units to each nev file as well as to output data
     disp('started saving unit files')
@@ -144,7 +144,7 @@
     pwd = cd;
     cd(inputData.folderpath);
 
-    nevFileList = dirSorted('*_spikes.nev');
+    nevFileList = dirSorted('*_spikesExtracted.nev');
     outputDataFileList = dirSorted('*_outputData.mat');
     
     NEV_all = [];
@@ -189,10 +189,10 @@
             NEV_all.Data.SerialDigitalIO.UnparsedData = [NEV_all.Data.SerialDigitalIO.UnparsedData; NEV_single.Data.SerialDigitalIO.UnparsedData];
             
             % merge stim info from output data to separate merged struct
-            stimInfo.stimOn = [stimInfo.stimOn; outputData.stimInfo.stimOn + durationAll_points];
-            stimInfo.stimOff = [stimInfo.stimOff; outputData.stimInfo.stimOff + durationAll_points];
-            stimInfo.chanSent = [stimInfo.chanSent; outputData.waveforms.chanSent];
-            stimInfo.waveSent = [stimInfo.waveSent; outputData.waveforms.waveSent];
+            stimInfo.stimOn = [stimInfo.stimOn,outputData.stimInfo.stimOn + durationAll_points];
+            stimInfo.stimOff = [stimInfo.stimOff, outputData.stimInfo.stimOff + durationAll_points];
+            stimInfo.chanSent = [stimInfo.chanSent, outputData.waveforms.chanSent];
+            stimInfo.waveSent = [stimInfo.waveSent, outputData.waveforms.waveSent];
             
             % update duration all
             durationAll_points = durationAll_points + NEV_single.MetaTags.DataDuration;
