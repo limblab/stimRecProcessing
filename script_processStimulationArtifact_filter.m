@@ -5,8 +5,7 @@
 % this script does not do any thresholding of the data.
 
 pwd = cd;
-% folderpath='C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\Han_20180310_chic201802\';
-folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\Han_20180318_stimSwitchFastSettleOn\';
+folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\Han_20180310_chic201802\';
 functionName='processStimArtifact_filter'; % includes acausal filtered data
 
 %%
