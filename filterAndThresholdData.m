@@ -490,7 +490,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     % change with it
     for resetIdx = 1:numel(outputData.DataPoints)
         stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) = ...
-            stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) - outputData.DataPoints(resetIdx)-NSx_trim.TimeStamp(resetIdx);
+            stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) - outputData.DataPoints(resetIdx)-NSx_trim.MetaTags.Timestamp(resetIdx);
     end
     
     

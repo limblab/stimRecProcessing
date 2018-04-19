@@ -2,7 +2,7 @@
     clear
     pwd = cd;
 
-    inputData.folderpath= 'D:\Lab\Data\StimArtifact\testingCode\'; % must have \ at the end
+    inputData.folderpath= 'C:\Users\jts3256\Desktop\testingCode_20171025_chips\'; % must have \ at the end
 %     inputData.folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
 %     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
@@ -115,10 +115,10 @@
         units.waveform = NEV_dataAll.Data.Spikes.Waveform(:,unitsMask)*0.254;
         
         % undo any duration adding do to resets
-        for resetIdx = 1:numel(outputData.DataDurationSec)
+        for resetIdx = 1:numel(outputData.DataDurationSec)-1 % to prevent an extra reset
             mask = units.ts > outputData.DataDurationSec(resetIdx);
             units.ts(mask) = units.ts(mask) - outputData.DataDurationSec(resetIdx);
-            % stim on info is already adjusted
+            % stim on info is already adjusted (incorrectly, ignore this)
         end
         % load normal nev
         NEV_dataSingle = openNEV('read',[inputData.folderpath outputDataFileList(f).name(1:end-15) '.nev'],'nosave');
