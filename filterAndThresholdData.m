@@ -505,6 +505,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     for n = 1:numel(NSx_trim.ElectrodesInfo)
         NSx_trim.ElectrodesInfo(n).Label = pad(NSx_trim.ElectrodesInfo(n).Label,16);
     end
+    NSx_trim.MetaTags.Timestamp = [0,NSx_trim.MetaTags.DataPoints]; % so that recoverPreSync works
     saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
 
     %% setup output data
