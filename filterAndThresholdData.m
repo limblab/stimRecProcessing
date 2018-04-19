@@ -191,7 +191,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     outputData.DataDurationSec = NSx.MetaTags.DataDurationSec + NSx.MetaTags.Timestamp;
     outputData.DataPoints = NSx.MetaTags.DataPoints;
     NSx_dataIdx = 1;
-    outputData.duration = size(NSx.Data{NSx_dataIdx},2)/30000 + 10; % add 10 to keep a space between files, just in case
+    outputData.duration = size(NSx.Data{NSx_dataIdx},2)/30000; % 
 
     
     %% use sync to get stim times:
@@ -490,7 +490,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     % change with it
     for resetIdx = 1:numel(outputData.DataPoints)
         stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) = ...
-            stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) - outputData.DataPoints(resetIdx);
+            stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) - outputData.DataPoints(resetIdx)-NSx_trim.TimeStamp(resetIdx);
     end
     
     
@@ -504,8 +504,8 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     NSx_trim.ElectrodesInfo(chanMask) = [];
     for n = 1:numel(NSx_trim.ElectrodesInfo)
         NSx_trim.ElectrodesInfo(n).Label = pad(NSx_trim.ElectrodesInfo(n).Label,16);
-    end
-    NSx_trim.MetaTags.Timestamp = [0,NSx_trim.MetaTags.DataPoints]; % so that recoverPreSync works
+    end 
+% % % %     NSx_trim.MetaTags.Timestamp = [0,NSx_trim.MetaTags.DataPoints(1:end-1)]; % so that recoverPreSync wor
     saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
 
     %% setup output data
