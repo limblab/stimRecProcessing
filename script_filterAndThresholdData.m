@@ -2,16 +2,16 @@
     clear
     pwd = cd;
 
-    inputData.folderpath= 'D:\Lab\Data\StimArtifact\testingCode\'; % must have \ at the end
+    inputData.folderpath= 'C:\Users\tucker\Desktop\processing\'; % must have \ at the end
 %     inputData.folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
 %     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
-    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
+    inputData.mapFile = 'mapFileZ:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
 
     inputData.task='taskCObump';
     inputData.ranBy='ranByJoseph'; 
-    inputData.array1='arrayLeftS1'; 
-    inputData.monkey='monkeyChips';
+    inputData.array1='arrayCuneate'; 
+    inputData.monkey='monkeyButter';
     inputData.labnum = 6;
     
     inputData.dukeBoardChannel = -1;
