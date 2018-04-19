@@ -9,9 +9,9 @@ function [f] = acausalFilter(data)
     % make filter
     [b,a] = butter(6,[500]/(30000/2),'high');
     % pad data
-    data = [mean(data(1:min(100,size(data,1)),:))+zeros(numPad,size(data,2));...
+    data = [repmat(mean(data(1:min(100,size(data,1)),:)),[numPad,1]);...
         data;...
-        mean(data(end-min(99,size(data,1)-1):end,:))+zeros(numPad,size(data,2))];
+        repmat(mean(data(end-min(99,size(data,1)-1):end,:)),[numPad,1])];
     % acausal filter
     f = fliplr(filter(b,a,fliplr(data')')')';
     
