@@ -55,8 +55,8 @@
 
         [~,outputData] = filterAndThresholdData(inputData);
         stimInfo = outputData.stimInfo;
-        stimInfo.chanSent = outputData.waveforms.chanSent;
-        stimInfo.waveSent = outputData.waveforms.waveSent;
+        stimInfo.chanSent = outputData.waveforms.chanSent';
+        stimInfo.waveSent = outputData.waveforms.waveSent';
         stimInfo.parameters = outputData.waveforms.parameters;
        
         save([inputData.folderpath,inputData.filename(1:end-4),'_outputData.mat'],'outputData');
