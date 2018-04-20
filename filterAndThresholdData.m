@@ -295,9 +295,9 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     
     thresholdAll = sqrt(thresholdAll);
         
-    spikeWaves = zeros(10000,lengthWave);
-    spikeTimes = zeros(10000,1);
-    spikeChan = zeros(10000,1);    
+    spikeWaves = zeros(90000,lengthWave);
+    spikeTimes = zeros(90000,1);
+    spikeChan = zeros(90000,1);    
     spikeNum = 1;
     disp('extracting spikes')
     for ch = 1:(size(neuralLFP,1)-1)
@@ -323,7 +323,10 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
 
             %% get threshold crossings
             thresholdCrossings = find(stimData>abs(threshold)); % acausal filtered data, positive threshold
-
+            
+            % remove data too close to beginning or end of stimData
+            mask = thresholdCrossings > preOffset+1 & thresholdCrossings < numel(stimData)-postOffset;
+            thresholdCrossings = thresholdCrossings(mask);
             %% append data before and after stimData to get spikes near the edges
             numAppend = 100;
             stimData = [zeros(numAppend,size(stimData,2));stimData(:,:);zeros(numAppend,size(stimData,2))];
@@ -385,24 +388,14 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
                 end
                 spikeChan(spikeNum) = NSx.ElectrodesInfo(ch).ElectrodeID;
                 
-                % check if too close to beginning or end
-                if(thresholdCrossings(cross)+postOffset > numel(stimData(:,1)))
-                    numZerosPad = (preOffset+postOffset+1) - numel(stimData(thresholdCrossings(cross)-preOffset:end,1));
-                    spikeWaves(spikeNum,:) = [stimData(thresholdCrossings(cross)-preOffset:end,1);zeros(numZerosPad,1)];
-                elseif(thresholdCrossings(cross)-preOffset < 0)
-                    numZerosPad = (preOffset+postOffset+1) - numel(stimData(1:thresholdCrossings(cross)+postOffset,1));
-                    spikeWaves(spikeNum,:) = [zeros(numZerosPad,1);stimData(thresholdCrossings(cross)-preOffset:end,1)];
-                else
-                    spikeWaves(spikeNum,:) = stimData(thresholdCrossings(cross)-preOffset:thresholdCrossings(cross)+postOffset,1);
-                end
-                
+                spikeWaves(spikeNum,:) = stimData(thresholdCrossings(cross)-preOffset:thresholdCrossings(cross)+postOffset,1);
                 spikeNum = spikeNum + 1;
 
                 % preallocate space in arrays if close to max size
-                if(spikeNum > 0.67*numel(spikeTimes))
-                    spikeTimes = [spikeTimes;zeros(1000,1)];
-                    spikeWaves = [spikeWaves; zeros(1000,lengthWave)];
-                    spikeChan = [spikeChan; zeros(1000,1)];
+                if(spikeNum > numel(spikeTimes))
+                    spikeTimes = [spikeTimes;zeros(10000,1)];
+                    spikeWaves = [spikeWaves; zeros(10000,lengthWave)];
+                    spikeChan = [spikeChan; zeros(10000,1)];
                 end
             end
 

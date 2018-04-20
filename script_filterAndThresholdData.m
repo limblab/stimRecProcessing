@@ -49,7 +49,7 @@
     nevDataAll = [];
     durationAll = 0;
     % process data
-    for f = 1:2%numel(fileList)
+    for f = 1:numel(fileList)
         warning('off')
         inputData.filename = fileList(f).name;
 
@@ -57,7 +57,7 @@
         stimInfo = outputData.stimInfo;
         stimInfo.chanSent = outputData.waveforms.chanSent;
         stimInfo.waveSent = outputData.waveforms.waveSent;
-        stimInfo.paramters = outputData.waveforms.parameters;
+        stimInfo.parameters = outputData.waveforms.parameters;
        
         save([inputData.folderpath,inputData.filename(1:end-4),'_outputData.mat'],'outputData');
         save([inputData.folderpath,inputData.filename(1:end-4),'_stimInfo.mat'],'stimInfo');
