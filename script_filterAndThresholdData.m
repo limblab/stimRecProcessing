@@ -49,7 +49,7 @@
     nevDataAll = [];
     durationAll = 0;
     % process data
-    for f = 1:numel(fileList)
+    for f = 1:2%numel(fileList)
         warning('off')
         inputData.filename = fileList(f).name;
 

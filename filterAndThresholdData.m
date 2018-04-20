@@ -84,6 +84,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     disp(['working on:', inputData.filename])
         
     NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double','uv');
+    NSx_trim = NSx; % store a version for future trimming
     % remove needless spaces from the NSx.ElectrodesInfo.Label field
     for j = 1:numel(NSx.ElectrodesInfo)
         NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
@@ -168,7 +169,6 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     
     %% append data, store where data was combined
-    NSx_trim = NSx; % store a version for future trimming
     
     outputData.preSyncTimes = [];
     outputData.preSyncPoints = [];
@@ -502,7 +502,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         NSx_trim.Data{n}(chanMask,:) = [];
     end
     NSx_trim.ElectrodesInfo(chanMask) = [];
-  
+    
 % % % %     NSx_trim.MetaTags.Timestamp = [0,NSx_trim.MetaTags.DataPoints(1:end-1)]; % so that recoverPreSync wor
     saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
 
