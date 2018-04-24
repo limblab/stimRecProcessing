@@ -496,8 +496,12 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     % this is so that the time stamps of non-neural data can be adjusted in the same way
     % as all of the other data
     
-    for n = 1:numel(NSx_trim.Data)
-        NSx_trim.Data{n}(chanMask,:) = [];
+    if(iscell(NSx_trim.Data))
+        for n = 1:numel(NSx_trim.Data)
+            NSx_trim.Data{n}(chanMask,:) = [];
+        end
+    else
+        NSx_trim.Data(chanMask,:) = [];
     end
     NSx_trim.ElectrodesInfo(chanMask) = [];
     
