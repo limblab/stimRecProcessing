@@ -83,7 +83,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     %% load file
     disp(['working on:', inputData.filename])
         
-    NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double','uv');
+    NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double');
     NSx_trim = NSx; % store a version for future trimming
     % remove needless spaces from the NSx.ElectrodesInfo.Label field
     for j = 1:numel(NSx.ElectrodesInfo)
@@ -173,18 +173,23 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     outputData.preSyncTimes = [];
     outputData.preSyncPoints = [];
     data = [];
-    for NSx_idx = 1:numel(NSx.Data)
-        if(NSx_idx == 1)
-            data = NSx.Data{NSx_idx};
-        else
-            if(NSx.MetaTags.Timestamp(NSx_idx) == 0)
-                data = [data,NSx.Data{NSx_idx}(:,:)];
+    if(iscell(NSx.Data))
+        for NSx_idx = 1:numel(NSx.Data)
+            if(NSx_idx == 1)
+                data = NSx.Data{NSx_idx};
             else
-                data = [data,zeros(size(NSx.Data{NSx_idx},1),NSx.MetaTags.Timestamp(NSx_idx)),NSx.Data{NSx_idx}(:,:)];
-            end
-        end 
+                if(NSx.MetaTags.Timestamp(NSx_idx) == 0)
+                    data = [data,NSx.Data{NSx_idx}(:,:)];
+                else
+                    data = [data,zeros(size(NSx.Data{NSx_idx},1),NSx.MetaTags.Timestamp(NSx_idx)),NSx.Data{NSx_idx}(:,:)];
+                end
+            end 
+        end
+    else
+        data = NSx.Data;
     end
         
+    NSx.Data = {};
     NSx.Data{1} = data; % this is so stupid of me
     clear data
 
