@@ -83,7 +83,8 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     %% load file
     disp(['working on:', inputData.filename])
         
-    NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double','uv');
+    NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double');
+    NSx_trim = NSx; % store a version for future trimming
     % remove needless spaces from the NSx.ElectrodesInfo.Label field
     for j = 1:numel(NSx.ElectrodesInfo)
         NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
@@ -168,23 +169,27 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     
     %% append data, store where data was combined
-    NSx_trim = NSx; % store a version for future trimming
     
     outputData.preSyncTimes = [];
     outputData.preSyncPoints = [];
     data = [];
-    for NSx_idx = 1:numel(NSx.Data)
-        if(NSx_idx == 1)
-            data = NSx.Data{NSx_idx};
-        else
-            if(NSx.MetaTags.Timestamp(NSx_idx) == 0)
-                data = [data,NSx.Data{NSx_idx}(:,:)];
+    if(iscell(NSx.Data))
+        for NSx_idx = 1:numel(NSx.Data)
+            if(NSx_idx == 1)
+                data = NSx.Data{NSx_idx};
             else
-                data = [data,zeros(size(NSx.Data{NSx_idx},1),NSx.MetaTags.Timestamp(NSx_idx)),NSx.Data{NSx_idx}(:,:)];
-            end
-        end 
+                if(NSx.MetaTags.Timestamp(NSx_idx) == 0)
+                    data = [data,NSx.Data{NSx_idx}(:,:)];
+                else
+                    data = [data,zeros(size(NSx.Data{NSx_idx},1),NSx.MetaTags.Timestamp(NSx_idx)),NSx.Data{NSx_idx}(:,:)];
+                end
+            end 
+        end
+    else
+        data = NSx.Data;
     end
         
+    NSx.Data = {};
     NSx.Data{1} = data; % this is so stupid of me
     clear data
 
@@ -295,9 +300,9 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     
     thresholdAll = sqrt(thresholdAll);
         
-    spikeWaves = zeros(10000,lengthWave);
-    spikeTimes = zeros(10000,1);
-    spikeChan = zeros(10000,1);    
+    spikeWaves = zeros(90000,lengthWave);
+    spikeTimes = zeros(90000,1);
+    spikeChan = zeros(90000,1);    
     spikeNum = 1;
     disp('extracting spikes')
     for ch = 1:(size(neuralLFP,1)-1)
@@ -325,6 +330,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             thresholdCrossings = find(stimData>abs(threshold)); % acausal filtered data, positive threshold
             % check if too close to beginning or end
             mask=thresholdCrossings>(preOffset+1) & thresholdCrossings <numel(stimData)-(postOffset+1);
+
             thresholdCrossings = thresholdCrossings(mask);
             %% append data before and after stimData to get spikes near the edges
             numAppend = 100;
@@ -490,8 +496,12 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     % this is so that the time stamps of non-neural data can be adjusted in the same way
     % as all of the other data
     
-    for n = 1:numel(NSx_trim.Data)
-        NSx_trim.Data{n}(chanMask,:) = [];
+    if(iscell(NSx_trim.Data))
+        for n = 1:numel(NSx_trim.Data)
+            NSx_trim.Data{n}(chanMask,:) = [];
+        end
+    else
+        NSx_trim.Data(chanMask,:) = [];
     end
     NSx_trim.ElectrodesInfo(chanMask) = [];
 

@@ -2,11 +2,11 @@
     clear
     pwd = cd;
 
-    inputData.folderpath= 'C:\Users\tucker\Desktop\processing\'; % must have \ at the end
-%     inputData.folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\';
+%     inputData.folderpath= 'C:\Users\tucker\Desktop\processing\'; % must have \ at the end
+    inputData.folderpath = 'C:\Users\jts3256\Desktop\testingCode_20171025_chips\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
-%     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
-    inputData.mapFile = 'mapFileZ:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
+    inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
+%     inputData.mapFile = 'mapFileZ:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
 
     inputData.task='taskCObump';
     inputData.ranBy='ranByJoseph'; 
@@ -55,6 +55,9 @@
 
         [~,outputData] = filterAndThresholdData(inputData);
         stimInfo = outputData.stimInfo;
+        stimInfo.chanSent = outputData.waveforms.chanSent';
+        stimInfo.waveSent = outputData.waveforms.waveSent';
+        stimInfo.parameters = outputData.waveforms.parameters;
        
         save([inputData.folderpath,inputData.filename(1:end-4),'_outputData.mat'],'outputData');
         save([inputData.folderpath,inputData.filename(1:end-4),'_stimInfo.mat'],'stimInfo');
@@ -115,10 +118,10 @@
         units.waveform = NEV_dataAll.Data.Spikes.Waveform(:,unitsMask)*0.254;
         
         % undo any duration adding do to resets
-        for resetIdx = 1:numel(outputData.DataDurationSec)
+        for resetIdx = 1:numel(outputData.DataDurationSec)-1 % to prevent an extra reset
             mask = units.ts > outputData.DataDurationSec(resetIdx);
             units.ts(mask) = units.ts(mask) - outputData.DataDurationSec(resetIdx);
-            % stim on info is already adjusted
+            % stim on info is already adjusted (incorrectly, ignore this)
         end
         % load normal nev
         NEV_dataSingle = openNEV('read',[inputData.folderpath outputDataFileList(f).name(1:end-15) '.nev'],'nosave');
