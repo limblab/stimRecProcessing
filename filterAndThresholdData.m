@@ -82,8 +82,17 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     %% load file
     disp(['working on:', inputData.filename])
         
-    NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double','uv');
-    % remove excess spaces from the NSx.ElectrodesInfo.Label field
+
+    try
+        NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double','uV');
+    catch
+        NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double');
+        warning('openNSx does not support the uV option (?). This may somehow affect the amplitude of collected spikes');
+    end
+    
+    NSx_trim = NSx; % store a version for future trimming
+    % remove needless spaces from the NSx.ElectrodesInfo.Label field
+
     for j = 1:numel(NSx.ElectrodesInfo)
         NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
         NSx.ElectrodesInfo(j).Label(double(NSx.ElectrodesInfo(j).Label)==0) = []; % remove null values           
@@ -167,17 +176,14 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     
     %% append data, store where data was combined
-    NSx_trim = NSx; % store a version for future trimming
     
     outputData.preSyncTimes = [];
     outputData.preSyncPoints = [];
     data = [];
-    for NSx_idx = 1:numel(NSx.Data)
-        if(NSx_idx == 1)
-            data = NSx.Data{NSx_idx};
-        else
-            if(NSx.MetaTags.Timestamp(NSx_idx) == 0)
-                data = [data,NSx.Data{NSx_idx}(:,:)];
+    if(iscell(NSx.Data))
+        for NSx_idx = 1:numel(NSx.Data)
+            if(NSx_idx == 1)
+                data = NSx.Data{NSx_idx};
             else
                 % to line up with the cds
                 data = [data,zeros(size(NSx.Data{NSx_idx},1),NSx.MetaTags.Timestamp(NSx_idx)),NSx.Data{NSx_idx}(:,:)];
@@ -185,6 +191,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         end 
     end
         
+    NSx.Data = {};
     NSx.Data{1} = data; % this is so stupid of me
     clear data
 
@@ -193,7 +200,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     outputData.TimeStamp = NSx.MetaTags.Timestamp;
     
     NSx_dataIdx = 1;
-    outputData.duration = size(NSx.Data{NSx_dataIdx},2)/30000 + 10; % add 10 to keep a space between files, just in case
+    outputData.duration = size(NSx.Data{NSx_dataIdx},2)/30000; % 
 
     
     %% use sync to get stim times:
@@ -298,10 +305,11 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     
     thresholdAll = sqrt(thresholdAll*numPoints/numPointsActual);
         
-    % initialize arrays for storing data
-    spikeWaves = zeros(10000,lengthWave);
-    spikeTimes = zeros(10000,1);
-    spikeChan = zeros(10000,1);    
+
+    spikeWaves = zeros(90000,lengthWave);
+    spikeTimes = zeros(90000,1);
+    spikeChan = zeros(90000,1);    
+
     spikeNum = 1;
     disp('extracting spikes')
     for ch = 1:(size(neuralLFP,1)-1)
@@ -327,7 +335,10 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
 
             %% get threshold crossings
             thresholdCrossings = find(stimData>abs(threshold)); % acausal filtered data, positive threshold
+            % check if too close to beginning or end
+            mask=thresholdCrossings>(preOffset+1) & thresholdCrossings <numel(stimData)-(postOffset+1);
 
+            thresholdCrossings = thresholdCrossings(mask);
             %% append data before and after stimData to get spikes near the edges
             numAppend = 100;
             stimData = [zeros(numAppend,size(stimData,2));stimData(:,:);zeros(numAppend,size(stimData,2))];
@@ -390,24 +401,14 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
                 end
                 spikeChan(spikeNum) = NSx.ElectrodesInfo(ch).ElectrodeID;
                 
-                % check if too close to beginning or end
-                if(thresholdCrossings(cross)+postOffset > numel(stimData(:,1)))
-                    numZerosPad = (preOffset+postOffset+1) - numel(stimData(thresholdCrossings(cross)-preOffset:end,1));
-                    spikeWaves(spikeNum,:) = [stimData(thresholdCrossings(cross)-preOffset:end,1);zeros(numZerosPad,1)];
-                elseif(thresholdCrossings(cross)-preOffset < 0)
-                    numZerosPad = (preOffset+postOffset+1) - numel(stimData(1:thresholdCrossings(cross)+postOffset,1));
-                    spikeWaves(spikeNum,:) = [zeros(numZerosPad,1);stimData(thresholdCrossings(cross)-preOffset:end,1)];
-                else
-                    spikeWaves(spikeNum,:) = stimData(thresholdCrossings(cross)-preOffset:thresholdCrossings(cross)+postOffset,1);
-                end
-                
+                spikeWaves(spikeNum,:) = stimData((thresholdCrossings(cross)-preOffset):(thresholdCrossings(cross)+postOffset),1);
                 spikeNum = spikeNum + 1;
 
                 % preallocate space in arrays if close to max size
-                if(spikeNum > 0.67*numel(spikeTimes))
-                    spikeTimes = [spikeTimes;zeros(1000,1)];
-                    spikeWaves = [spikeWaves; zeros(1000,lengthWave)];
-                    spikeChan = [spikeChan; zeros(1000,1)];
+                if(spikeNum >= numel(spikeTimes))
+                    spikeTimes = [spikeTimes;zeros(10000,1)];
+                    spikeWaves = [spikeWaves; zeros(10000,lengthWave)];
+                    spikeChan = [spikeChan; zeros(10000,1)];
                 end
             end
 
@@ -495,7 +496,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     % change with it
     for resetIdx = 1:numel(outputData.DataPoints)
         stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) = ...
-            stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) - outputData.DataPoints(resetIdx);
+            stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) - outputData.DataPoints(resetIdx)-NSx_trim.MetaTags.Timestamp(resetIdx);
     end
     
     
@@ -503,13 +504,16 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     % this is so that the time stamps of non-neural data can be adjusted in the same way
     % as all of the other data
     
-    for n = 1:numel(NSx_trim.Data)
-        NSx_trim.Data{n}(chanMask,:) = [];
+    if(iscell(NSx_trim.Data))
+        for n = 1:numel(NSx_trim.Data)
+            NSx_trim.Data{n}(chanMask,:) = [];
+        end
+    else
+        NSx_trim.Data(chanMask,:) = [];
     end
     NSx_trim.ElectrodesInfo(chanMask) = [];
-    for n = 1:numel(NSx_trim.ElectrodesInfo)
-        NSx_trim.ElectrodesInfo(n).Label = pad(NSx_trim.ElectrodesInfo(n).Label,16);
-    end
+
+% % % %     NSx_trim.MetaTags.Timestamp = [0,NSx_trim.MetaTags.DataPoints(1:end-1)]; % so that recoverPreSync wor
     saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
 
     %% setup output data

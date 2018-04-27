@@ -1,16 +1,17 @@
 %% this script filters and thresholds stimulation data
     clear
     pwd = cd;
-    inputData.folderpath= 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\'; % must have \ at the end
-%     inputData.folderpath = 'C:\Users\Joseph\Desktop\Lab\Data\StimArtifact\testingCode\';
+
+%     inputData.folderpath= 'C:\Users\tucker\Desktop\processing\'; % must have \ at the end
+    inputData.folderpath = 'C:\Users\jts3256\Desktop\testingCode_20171025_chips\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
-    % inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
+%     inputData.mapFile = 'mapFileZ:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
 
     inputData.task='taskCObump';
     inputData.ranBy='ranByJoseph'; 
-    inputData.array1='arrayLeftS1'; 
-    inputData.monkey='monkeyHan';
+    inputData.array1='arrayCuneate'; 
+    inputData.monkey='monkeyButter';
     inputData.labnum = 6;
     
     inputData.dukeBoardChannel = -1;
@@ -53,7 +54,13 @@
         inputData.filename = fileList(f).name;
 
         [~,outputData] = filterAndThresholdData(inputData);
+        stimInfo = outputData.stimInfo;
+        stimInfo.chanSent = outputData.waveforms.chanSent';
+        stimInfo.waveSent = outputData.waveforms.waveSent';
+        stimInfo.parameters = outputData.waveforms.parameters;
+       
         save([inputData.folderpath,inputData.filename(1:end-4),'_outputData.mat'],'outputData');
+        save([inputData.folderpath,inputData.filename(1:end-4),'_stimInfo.mat'],'stimInfo');
         % append nev data
         if(f == 1)
             nevDataAll = outputData.nevData;
@@ -82,10 +89,13 @@
     disp('DONE -- CAN CONTINUE')
     warning('on')
 
-%% sort *_merged and call it *_merged-s
+%% sort *_merged and call it *_merged-s, rename ns1 as well (?)
 
 %% load in *_merged-s, split apart the units,
-%% save the units to a new nev file as well as to output data
+%% save the units to a new nev file as well as to output data and a stimInfo file
+% the new nev file (*_spikesExtracted*), the new ns5 (*_spikesExtracted*), and the stimInfo mat file are needed for
+% further processing. Everything else is excess
+
     disp('started saving unit files')
 
     pwd = cd;
@@ -112,10 +122,10 @@
         units.waveform = NEV_dataAll.Data.Spikes.Waveform(:,unitsMask)*0.254;
         
         % undo any duration adding do to resets
-        for resetIdx = 1:numel(outputData.DataDurationSec)
+        for resetIdx = 1:numel(outputData.DataDurationSec)-1 % to prevent an extra reset
             mask = units.ts > outputData.DataDurationSec(resetIdx);
             units.ts(mask) = units.ts(mask) - outputData.DataDurationSec(resetIdx);
-            % stim on info is already adjusted
+            % stim on info is already adjusted (incorrectly, ignore this)
         end
         % load normal nev
         NEV_dataSingle = openNEV('read',[inputData.folderpath outputDataFileList(f).name(1:end-15) '.nev'],'nosave');
@@ -131,91 +141,9 @@
         % save normal nev with a new name
         saveNEV(NEV_dataSingle,[inputData.folderpath outputDataFileList(f).name(1:end-15), '_spikesExtracted.nev'],'noreport');
         
-        % save output data with units
-        outputData.units = units;
-%         save(outputDataFileList(f).name,'outputData','-v7.3');
         
         % update duration for splitting files
         durationAll = durationAll + outputData.duration;
     end
     
     disp('done replacing spike info')
-
-%% combine all .nev files into one, merge all stim timings into 1 as well
-%% currently does not support .ns* files, which should be implemented
-
-    pwd = cd;
-    cd(inputData.folderpath);
-
-    nevFileList = dirSorted('*_spikes.nev');
-    outputDataFileList = dirSorted('*_outputData.mat');
-    
-    NEV_all = [];
-    stimInfo = [];
-    
-    for nf = 1:numel(nevFileList)
-        disp(num2str(nf))
-        NEV_single = openNEV('read',[inputData.folderpath nevFileList(nf).name],'nosave');
-        load(outputDataFileList(nf).name);
-        
-        if(nf == 1)
-            NEV_all = NEV_single;
-            NEV_all.Filename = [nevFileList(1).name(1:underscoreIdx(2)),'_spikes_all_merged.nev'];
-            
-            stimInfo = outputData.stimInfo;
-            stimInfo.chanSent = outputData.waveforms.chanSent;
-            stimInfo.waveSent = outputData.waveforms.waveSent;
-            stimInfo.parameters = outputData.waveforms.parameters;
-            
-            durationAll_points = NEV_single.MetaTags.DataDuration;
-            durationAll_sec = NEV_single.MetaTags.DataDurationSec;
-        else
-            % merge meta info - DataDuration, DataDurationSec
-            NEV_all.MetaTags.DataDuration = NEV_all.MetaTags.DataDuration + NEV_single.MetaTags.DataDuration;
-            NEV_all.MetaTags.DataDurationSec = NEV_all.MetaTags.DataDurationSec + NEV_single.MetaTags.DataDurationSec;
-                        
-            % merge spike data -- update time stamp, combine all matrices
-            NEV_single.Data.Spikes.TimeStamp = NEV_single.Data.Spikes.TimeStamp + durationAll_points;
-            
-            NEV_all.Data.Spikes.TimeStamp = [NEV_all.Data.Spikes.TimeStamp,NEV_single.Data.Spikes.TimeStamp];
-            NEV_all.Data.Spikes.Electrode = [NEV_all.Data.Spikes.Electrode,NEV_single.Data.Spikes.Electrode];
-            NEV_all.Data.Spikes.Unit = [NEV_all.Data.Spikes.Unit,NEV_single.Data.Spikes.Unit];
-            NEV_all.Data.Spikes.Waveform = [NEV_all.Data.Spikes.Waveform,NEV_single.Data.Spikes.Waveform];
-            
-            % merge serial data -- update time stamps, combine all matrices
-            NEV_single.Data.SerialDigitalIO.TimeStamp = NEV_single.Data.SerialDigitalIO.TimeStamp + durationAll_points;
-            NEV_single.Data.SerialDigitalIO.TimeStampSec = NEV_single.Data.SerialDigitalIO.TimeStampSec + durationAll_sec;
-            
-            NEV_all.Data.SerialDigitalIO.TimeStamp = [NEV_all.Data.SerialDigitalIO.TimeStamp, NEV_single.Data.SerialDigitalIO.TimeStamp];
-            NEV_all.Data.SerialDigitalIO.TimeStampSec = [NEV_all.Data.SerialDigitalIO.TimeStampSec, NEV_single.Data.SerialDigitalIO.TimeStampSec];
-            NEV_all.Data.SerialDigitalIO.InsertionReason = [NEV_all.Data.SerialDigitalIO.InsertionReason, NEV_single.Data.SerialDigitalIO.InsertionReason];
-            NEV_all.Data.SerialDigitalIO.UnparsedData = [NEV_all.Data.SerialDigitalIO.UnparsedData; NEV_single.Data.SerialDigitalIO.UnparsedData];
-            
-            % merge stim info from output data to separate merged struct
-            stimInfo.stimOn = [stimInfo.stimOn; outputData.stimInfo.stimOn + durationAll_points];
-            stimInfo.stimOff = [stimInfo.stimOff; outputData.stimInfo.stimOff + durationAll_points];
-            stimInfo.chanSent = [stimInfo.chanSent; outputData.waveforms.chanSent];
-            stimInfo.waveSent = [stimInfo.waveSent; outputData.waveforms.waveSent];
-            
-            % update duration all
-            durationAll_points = durationAll_points + NEV_single.MetaTags.DataDuration;
-            durationAll_sec = durationAll_sec + NEV_single.MetaTags.DataDurationSec;
-        end
-    end
-    
-    NEV_all.MetaTags.DataDuration = durationAll_points;
-    NEV_all.MetaTags.DataDurationSec = durationAll_sec;
-    
-    % rewrite big nev file
-    underscoreIdx = strfind(nevFileList(1).name,'_');
-    saveNEV(NEV_all,[inputData.folderpath nevFileList(1).name(1:underscoreIdx(2)),'_spikes_all_merged.nev'],'noreport');
-    % save merged stim info
-    save([inputData.folderpath nevFileList(1).name(1:underscoreIdx(2)),'_spikes_all_merged_stimInfo.mat'],'stimInfo','-v7.3');
-    
-    disp('done merging into one .nev')
-%% load that file into a cds -- flag to add all of the stim related data
-%% this is not implemented at all
-%     cds = commonDataStructure();
-%     flist = dir('*spikes_all_merged.nev');
-%     cds.file2cds([inputData.folderpath flist(1).name],inputData.task,inputData.ranBy,inputData.monkey,inputData.labnum,'recoverPreSync');
-
