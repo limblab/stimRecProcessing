@@ -38,7 +38,7 @@
     inputData.maxAmplitude = 1000; % in uV
 
     inputData.maxChunkLength = 5000*30; % 5 second chunk maximum
-%% generates _cds and _nevData files, also writes nev file
+%% get spike crossing for all files, write a nev file
     cd(inputData.folderpath)
     fileList = dirSorted('*.ns5');
     outputData = [];
@@ -84,7 +84,8 @@
 
 %% sort *_merged and call it *_merged-s
 
-%% load in *_merged-s, save the units to each nev file as well as to output data
+%% load in *_merged-s, split apart the units,
+%% save the units to a new nev file as well as to output data
     disp('started saving unit files')
 
     pwd = cd;
@@ -141,6 +142,8 @@
     disp('done replacing spike info')
 
 %% combine all .nev files into one, merge all stim timings into 1 as well
+%% currently does not support .ns* files, which should be implemented
+
     pwd = cd;
     cd(inputData.folderpath);
 
@@ -211,7 +214,8 @@
     
     disp('done merging into one .nev')
 %% load that file into a cds -- flag to add all of the stim related data
-    cds = commonDataStructure();
-    flist = dir('*spikes_all_merged.nev');
-    cds.file2cds([inputData.folderpath flist(1).name],inputData.task,inputData.ranBy,inputData.monkey,inputData.labnum,'recoverPreSync');
+%% this is not implemented at all
+%     cds = commonDataStructure();
+%     flist = dir('*spikes_all_merged.nev');
+%     cds.file2cds([inputData.folderpath flist(1).name],inputData.task,inputData.ranBy,inputData.monkey,inputData.labnum,'recoverPreSync');
 

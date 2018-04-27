@@ -68,13 +68,12 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     maxAmplitude = inputData.maxAmplitude; %uV
     lengthWave = preOffset+postOffset+1;
-    numZeros = 200;
     
-    % cds and extraseconds for merge purposes
+    % initialize arrays
     nevData = [];
     rawData = [];
     
-    % set up artifact data
+    % check for artifact data time
     if(~isfield(inputData,'artifactDataTime'))
         error('no time specified for the artifact data');
     end
@@ -84,7 +83,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     disp(['working on:', inputData.filename])
         
     NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double','uv');
-    % remove needless spaces from the NSx.ElectrodesInfo.Label field
+    % remove excess spaces from the NSx.ElectrodesInfo.Label field
     for j = 1:numel(NSx.ElectrodesInfo)
         NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
         NSx.ElectrodesInfo(j).Label(double(NSx.ElectrodesInfo(j).Label)==0) = []; % remove null values           
@@ -180,6 +179,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             if(NSx.MetaTags.Timestamp(NSx_idx) == 0)
                 data = [data,NSx.Data{NSx_idx}(:,:)];
             else
+                % to line up with the cds
                 data = [data,zeros(size(NSx.Data{NSx_idx},1),NSx.MetaTags.Timestamp(NSx_idx)),NSx.Data{NSx_idx}(:,:)];
             end
         end 
@@ -188,8 +188,10 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     NSx.Data{1} = data; % this is so stupid of me
     clear data
 
-    outputData.DataDurationSec = NSx.MetaTags.DataDurationSec + NSx.MetaTags.Timestamp;
-    outputData.DataPoints = NSx.MetaTags.DataPoints;
+    outputData.DataDurationSec = NSx.MetaTags.DataDurationSec + NSx.MetaTags.Timestamp/30000;
+    outputData.DataPoints = NSx.MetaTags.DataPoints + NSx.MetaTags.Timestamp;
+    outputData.TimeStamp = NSx.MetaTags.Timestamp;
+    
     NSx_dataIdx = 1;
     outputData.duration = size(NSx.Data{NSx_dataIdx},2)/30000 + 10; % add 10 to keep a space between files, just in case
 
@@ -239,12 +241,13 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
         
     %% add fake stim times so that the data processed is not too large and does not slow things down
+    %% this might not need to be here anymore because 
     if(isfield(inputData,'maxChunkLength'))
         stimOnMask = ones(numel(stimulationInformation.stimOn),1);
         stimOnTemp = stimulationInformation.stimOn;
         tempIdx = 2;
         while tempIdx < numel(stimOnTemp)
-            if(stimOnTemp(tempIdx) - stimOnTemp(tempIdx-1) > inputData.maxChunkLength)
+            if(stimOnTemp(tempIdx) - stimOnTemp(tempIdx-1) > inputData.maxChunkLength + 1000*30) % 1 second extra
                 stimOnTemp = [stimOnTemp(1:tempIdx-1,1);stimOnTemp(tempIdx-1)+inputData.maxChunkLength;...
                     stimOnTemp(tempIdx:end,1)];
                 stimOnMask = [stimOnMask(1:tempIdx-1,1); 0; stimOnMask(tempIdx:end,1)];
@@ -264,14 +267,14 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     neuralLFP(1,:) = roundTime((0:size(neuralLFP,2)-1)/NSx.MetaTags.SamplingFreq) + NSx.MetaTags.Timestamp(NSx_dataIdx)/NSx.MetaTags.TimeRes; % time stamps
     for ch = 1:size(NSx.Data{NSx_dataIdx},1)
         if(chanMask(ch))
-            neuralLFP(chanMapping(ch)+1,:) = double(NSx.Data{NSx_dataIdx}(ch,:));
+            neuralLFP(chanMapping(ch)+1,:) = double(NSx.Data{NSx_dataIdx}(ch,:)); % idx 1 is for time
         end
     end
     %% get thresholds for each channel based on non stim data
     thresholdAll = zeros(size(neuralLFP,1)-1,1);
     
     numPoints = size(neuralLFP,2);
-    numPointsUsed = 0;
+    numPointsActual = 0;
     disp('thresholding data')
     for stimuli = 1:numel(stimulationInformation.stimOn)+1
         if(numel(stimulationInformation.stimOn)==0)
@@ -293,8 +296,9 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         end
     end
     
-    thresholdAll = sqrt(thresholdAll);
+    thresholdAll = sqrt(thresholdAll*numPoints/numPointsActual);
         
+    % initialize arrays for storing data
     spikeWaves = zeros(10000,lengthWave);
     spikeTimes = zeros(10000,1);
     spikeChan = zeros(10000,1);    
@@ -313,7 +317,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
                 stimData = neuralLFP(ch+1,stimulationInformation.stimOn(stimIdx-1):stimulationInformation.stimOn(stimIdx));
             end
 
-            % filter backwards on all channels and threshold
+            % filter backwards on the channel
             stimData = acausalFilter(stimData');
             % compute threshold
             threshold = thresholdMult*thresholdAll(ch);
@@ -331,6 +335,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
 
             % remove potential artifacts based on max amplitude
             % of stim data
+            % could be written to not be a for loop....
             crossingsMask = ones(numel(thresholdCrossings),1);
             for cross = 1:numel(thresholdCrossings)
                 if(stimData(thresholdCrossings(cross),1) > maxAmplitude)
