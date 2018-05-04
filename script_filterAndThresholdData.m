@@ -3,15 +3,15 @@
     pwd = cd;
 
 %     inputData.folderpath= 'C:\Users\tucker\Desktop\processing\'; % must have \ at the end
-    inputData.folderpath = 'C:\Users\jts3256\Desktop\testingCode_20171025_chips\';
+    inputData.folderpath = 'C:\Users\jts3256\Desktop\Han_20180503_reactionTime\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
 %     inputData.mapFile = 'mapFileZ:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
 
-    inputData.task='taskCObump';
+    inputData.task='taskRT';
     inputData.ranBy='ranByJoseph'; 
-    inputData.array1='arrayCuneate'; 
-    inputData.monkey='monkeyButter';
+    inputData.array1='arrayLeftS1'; 
+    inputData.monkey='monkeyHan';
     inputData.labnum = 6;
     
     inputData.dukeBoardChannel = -1;

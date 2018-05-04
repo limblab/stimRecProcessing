@@ -83,7 +83,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     %% load file
     disp(['working on:', inputData.filename])
         
-    NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double');
+    NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double','uV');
     NSx_trim = NSx; % store a version for future trimming
     % remove needless spaces from the NSx.ElectrodesInfo.Label field
     for j = 1:numel(NSx.ElectrodesInfo)
@@ -215,6 +215,8 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         end
     end
     
+    stimulationInformation.stimOn = stimulationInformation.stimOn';
+    stimulationInformation.stimOff = stimulationInformation.stimOff';
         
     %% fix stim times if more than one pulse sent per wave
     if(isfield(inputData,'moreThanOnePulsePerWave') && isfield(inputData,'pulseFrequency') && isfield(inputData,'numPulses') && inputData.moreThanOnePulsePerWave)
@@ -250,9 +252,9 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         tempIdx = 2;
         while tempIdx < numel(stimOnTemp)
             if(stimOnTemp(tempIdx) - stimOnTemp(tempIdx-1) > inputData.maxChunkLength)
-                stimOnTemp = [stimOnTemp(1:tempIdx-1,1);stimOnTemp(tempIdx-1)+inputData.maxChunkLength;...
-                    stimOnTemp(tempIdx:end,1)];
-                stimOnMask = [stimOnMask(1:tempIdx-1,1); 0; stimOnMask(tempIdx:end,1)];
+                stimOnTemp = [stimOnTemp(1:tempIdx-1);stimOnTemp(tempIdx-1)+inputData.maxChunkLength;...
+                    stimOnTemp(tempIdx:end)];
+                stimOnMask = [stimOnMask(1:tempIdx-1); 0; stimOnMask(tempIdx:end)];
             end
             tempIdx = tempIdx + 1;
         end
