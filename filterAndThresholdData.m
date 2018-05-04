@@ -188,29 +188,28 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
                 data = [data,zeros(size(NSx.Data{NSx_idx},1),NSx.MetaTags.Timestamp(NSx_idx)),NSx.Data{NSx_idx}(:,:)];
             end
         end 
+        NSx.Data = data; 
+        clear data
+        
     end
         
-    NSx.Data = {};
-    NSx.Data{1} = data; % this is so stupid of me
-    clear data
-
     outputData.DataDurationSec = NSx.MetaTags.DataDurationSec + NSx.MetaTags.Timestamp/30000;
     outputData.DataPoints = NSx.MetaTags.DataPoints + NSx.MetaTags.Timestamp;
     outputData.TimeStamp = NSx.MetaTags.Timestamp;
     
     NSx_dataIdx = 1;
-    outputData.duration = size(NSx.Data{NSx_dataIdx},2)/30000; % 
+    outputData.duration = size(NSx.Data,2)/30000; % 
 
     
     %% use sync to get stim times:
-    stimulationInformation.stimOn=find(diff(NSx.Data{NSx_dataIdx}(NSx_syncIdx,:)-mean(NSx.Data{NSx_dataIdx}(NSx_syncIdx,:))>3)>.5);
-    stimOff=find(diff(NSx.Data{NSx_dataIdx}(NSx_syncIdx,:)-mean(NSx.Data{NSx_dataIdx}(NSx_syncIdx,:))<-3)>.5);
+    stimulationInformation.stimOn=find(diff(NSx.Data(NSx_syncIdx,:)-mean(NSx.Data(NSx_syncIdx,:))>3)>.5);
+    stimOff=find(diff(NSx.Data(NSx_syncIdx,:)-mean(NSx.Data(NSx_syncIdx,:))<-3)>.5);
     stimulationInformation.stimOff=nan(size(stimulationInformation.stimOn));
     for j=1:numel(stimulationInformation.stimOn)
         if j<numel(stimulationInformation.stimOn)
             next=stimulationInformation.stimOn(j+1);
         else
-            next=numel(NSx.Data{NSx_dataIdx}(NSx_syncIdx,:));
+            next=numel(NSx.Data(NSx_syncIdx,:));
         end
         offIdx=stimOff(find((stimOff>stimulationInformation.stimOn(j)& stimOff<next),1,'first'));
         if ~isempty(offIdx)
@@ -270,12 +269,12 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         
     %% extract neural channels from NSx.Data, convert to double, and append time information
     %% this actually takes a decent chunk of time, room for improvement probably
-    neuralLFP = zeros(sum(chanMask)+1,size(NSx.Data{NSx_dataIdx},2)); % preallocate
+    neuralLFP = zeros(sum(chanMask)+1,size(NSx.Data,2)); % preallocate
     
     neuralLFP(1,:) = roundTime((0:size(neuralLFP,2)-1)/NSx.MetaTags.SamplingFreq) + NSx.MetaTags.Timestamp(NSx_dataIdx)/NSx.MetaTags.TimeRes; % time stamps
-    for ch = 1:size(NSx.Data{NSx_dataIdx},1)
+    for ch = 1:size(NSx.Data,1)
         if(chanMask(ch))
-            neuralLFP(chanMapping(ch)+1,:) = double(NSx.Data{NSx_dataIdx}(ch,:)); % idx 1 is for time
+            neuralLFP(chanMapping(ch)+1,:) = double(NSx.Data(ch,:)); % idx 1 is for time
         end
     end
     %% get thresholds for each channel based on non stim data
