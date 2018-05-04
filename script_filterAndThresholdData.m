@@ -39,7 +39,7 @@
     inputData.maxAmplitude = 1000; % in uV
 
     inputData.maxChunkLength = 5000*30; % 5 second chunk maximum
-%% generates _cds and _nevData files, also writes nev file
+%% get spike crossing for all files, write a nev file
     cd(inputData.folderpath)
     fileList = dirSorted('*.ns5');
     outputData = [];
@@ -91,7 +91,11 @@
 
 %% sort *_merged and call it *_merged-s, rename ns1 as well (?)
 
-%% load in *_merged-s, save the units to each nev file as well as to output data
+%% load in *_merged-s, split apart the units,
+%% save the units to a new nev file as well as to output data and a stimInfo file
+% the new nev file (*_spikesExtracted*), the new ns5 (*_spikesExtracted*), and the stimInfo mat file are needed for
+% further processing. Everything else is excess
+
     disp('started saving unit files')
 
     pwd = cd;
