@@ -281,8 +281,8 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     thresholdAll = zeros(size(neuralLFP,1)-1,1);
     
     numPoints = size(neuralLFP,2);
-    numPointsActual = 0;
     disp('thresholding data')
+    numPointsActual = 0;
     for stimuli = 1:numel(stimulationInformation.stimOn)+1
         if(numel(stimulationInformation.stimOn)==0)
             stimData = neuralLFP(:,:);
@@ -298,7 +298,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         try
             stimDataFiltered = acausalFilter(stimData')'; % filter the data 
             thresholdAll = thresholdAll + sum(stimDataFiltered.^2,2)/numPoints; % threshold based on SS data
-            numPointsActual = numel(stimDataFiltered) + numPointsActual;
+            numPointsActual = size(stimDataFiltered,2) + numPointsActual;
         catch
         end
     end
