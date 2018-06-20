@@ -472,7 +472,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     
     for art = 1:artifactSkip:numel(stimulationInformation.stimOn)           
-        if(stimulationInformation.stimOn(art) + artifactDataTime*30000/1000 <= size(neuralLFP,2))
+        if(stimulationInformation.stimOn(art)-inputData.presample > 1 && stimulationInformation.stimOn(art) + artifactDataTime*30000/1000 <= size(neuralLFP,2))
             artifactData.artifact(artifactDataIndex,:,:) = neuralLFP(2:end,stimulationInformation.stimOn(art)-inputData.presample:stimulationInformation.stimOn(art)+floor(artifactDataTime*30000/1000)-1);
             artifactData.t(artifactDataIndex,1) = neuralLFP(1,stimulationInformation.stimOn(art));
             artifactDataIndex = artifactDataIndex + 1;
