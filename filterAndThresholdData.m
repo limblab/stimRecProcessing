@@ -89,8 +89,9 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         warning('openNSx does not support the uV option (?). This may somehow affect the amplitude of collected spikes');
     end
     
-    NSx_trim = NSx; % store a version for future trimming
-    % remove needless spaces from the NSx.ElectrodesInfo.Label field
+    NSx_trim = []; % store a version for trimming
+    
+    %% remove needless spaces from the NSx.ElectrodesInfo.Label field
 
     for j = 1:numel(NSx.ElectrodesInfo)
         NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
@@ -173,6 +174,23 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             end
         end
     end
+    
+    %% remove channels from ns5, write back as a new ns5 for later use
+    % this is so that the time stamps of non-neural data can be adjusted in the same way
+    % as all of the other data
+    fieldNames = fieldnames(NSx);
+    for field_idx = 1:numel(fieldNames)
+        if(strcmp(fieldNames(field_idx),'Data') == 1)
+            NSx_trim.Data = NSx.Data(~chanMask,:);
+        else
+            NSx_trim.(fieldNames{field_idx}) = NSx.(fieldNames{field_idx});
+        end
+    end
+    NSx_trim.ElectrodesInfo(chanMask) = [];
+    
+    saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
+    
+    
     
     %% append data, store where data was combined
     
@@ -499,23 +517,6 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) - outputData.DataPoints(resetIdx)-NSx_trim.MetaTags.Timestamp(resetIdx);
     end
     
-    
-    %% remove channels from ns5, write back as a new ns5 for later use
-    % this is so that the time stamps of non-neural data can be adjusted in the same way
-    % as all of the other data
-    
-    if(iscell(NSx_trim.Data))
-        for n = 1:numel(NSx_trim.Data)
-            NSx_trim.Data{n}(chanMask,:) = [];
-        end
-    else
-        NSx_trim.Data(chanMask,:) = [];
-    end
-    NSx_trim.ElectrodesInfo(chanMask) = [];
-
-% % % %     NSx_trim.MetaTags.Timestamp = [0,NSx_trim.MetaTags.DataPoints(1:end-1)]; % so that recoverPreSync wor
-    saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
-
     %% setup output data
     outputData.artifactData = artifactData;
     outputData.nevData = nevData;
