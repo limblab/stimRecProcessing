@@ -189,9 +189,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     NSx_trim.ElectrodesInfo(chanMask) = [];
     
     saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
-    
-    
-    
+   
     %% append data, store where data was combined
     
     outputData.preSyncTimes = [];
@@ -295,6 +293,8 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             neuralLFP(chanMapping(ch)+1,:) = double(NSx.Data(ch,:)); % idx 1 is for time
         end
     end
+    % NSx.Data = [];
+    
     %% get thresholds for each channel based on non stim data
     thresholdAll = zeros(size(neuralLFP,1)-1,1);
     
@@ -473,7 +473,6 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     clear spikeChan
     clear spikeWaves
         
-    
     % store artifact data
     artifactDataIndex = 1;
     artifactData.t = zeros(1000,1);

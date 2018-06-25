@@ -8,7 +8,7 @@
 %     inputData.mapFile='mapFileY:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
 %     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
-    inputData.task='taskRT';
+    inputData.task='taskRW';
     inputData.ranBy='ranByJoseph'; 
     inputData.array1='arrayLeftS1'; 
     inputData.monkey='monkeyChips';
