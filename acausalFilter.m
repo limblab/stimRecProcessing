@@ -13,7 +13,7 @@ function [filteredData] = acausalFilter(data)
         data;...
         repmat(mean(data(end-min(99,size(data,1)-1):end,:)),[numPad,1])];
     % acausal filter
-    filteredData = fliplr(filter(b,a,fliplr(data')')')';
+    filteredData = flip(filter(b,a,flip(data,1)),1);
     
 %     [b,a] = butter(2,[7500]/(30000/2),'low');
 %     f = fliplr(filter(b,a,fliplr(f')')')';
