@@ -1,6 +1,6 @@
 function [filteredData] = acausalFilter(data)
-    % data is an MxN matrix, M = data, N = number of artifacts (channels,
-    % repeated stimuli, etc.). Data has to be along the first dimension
+    % data is an 2-D matrix, filters along the first dimension. 
+    
     filteredData = [];
     if(isempty(data))
         return;
