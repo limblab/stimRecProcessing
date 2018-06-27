@@ -1,6 +1,5 @@
 function [filteredData] = acausalFilter(data)
-    % data is an MxN matrix, Filtering occurs along the first dimension
-    
+    % data is an 2-D matrix, filters along the first dimension. 
     
     filteredData = [];
     if(isempty(data))
