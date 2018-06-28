@@ -1,6 +1,6 @@
 function [filteredData] = acausalFilter(data)
-    % data is an MxN matrix, M = data, N = number of artifacts (channels,
-    % repeated stimuli, etc.). Data has to be along the first dimension
+    % data is an 2-D matrix, filters along the first dimension. 
+    
     filteredData = [];
     if(isempty(data))
         return;
@@ -13,7 +13,7 @@ function [filteredData] = acausalFilter(data)
         data;...
         repmat(mean(data(end-min(99,size(data,1)-1):end,:)),[numPad,1])];
     % acausal filter
-    filteredData = fliplr(filter(b,a,fliplr(data')')')';
+    filteredData = flip(filter(b,a,flip(data,1)),1);
     
 %     [b,a] = butter(2,[7500]/(30000/2),'low');
 %     f = fliplr(filter(b,a,fliplr(f')')')';

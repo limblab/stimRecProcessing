@@ -81,7 +81,6 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
      
     %% load file
     disp(['working on:', inputData.filename])
-        
 
     try
         NSx=openNSx('read', [inputData.folderpath,inputData.filename],'precision','double','uV');
@@ -90,8 +89,9 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         warning('openNSx does not support the uV option (?). This may somehow affect the amplitude of collected spikes');
     end
     
-    NSx_trim = NSx; % store a version for future trimming
-    % remove needless spaces from the NSx.ElectrodesInfo.Label field
+    NSx_trim = []; % store a version for trimming
+    
+    %% remove needless spaces from the NSx.ElectrodesInfo.Label field
 
     for j = 1:numel(NSx.ElectrodesInfo)
         NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
@@ -175,6 +175,23 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         end
     end
     
+    %% remove channels from ns5, write back as a new ns5 for later use
+    % this is so that the time stamps of non-neural data can be adjusted in the same way
+    % as all of the other data
+    fieldNames = fieldnames(NSx);
+    for field_idx = 1:numel(fieldNames)
+        if(strcmp(fieldNames(field_idx),'Data') == 1)
+            NSx_trim.Data = NSx.Data(~chanMask,:);
+        else
+            NSx_trim.(fieldNames{field_idx}) = NSx.(fieldNames{field_idx});
+        end
+    end
+    NSx_trim.ElectrodesInfo(chanMask) = [];
+    
+    saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
+    
+    
+    
     %% append data, store where data was combined
     
     outputData.preSyncTimes = [];
@@ -189,29 +206,28 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
                 data = [data,zeros(size(NSx.Data{NSx_idx},1),NSx.MetaTags.Timestamp(NSx_idx)),NSx.Data{NSx_idx}(:,:)];
             end
         end 
+        NSx.Data = data; 
+        clear data
+        
     end
         
-    NSx.Data = {};
-    NSx.Data{1} = data; % this is so stupid of me
-    clear data
-
     outputData.DataDurationSec = NSx.MetaTags.DataDurationSec + NSx.MetaTags.Timestamp/30000;
     outputData.DataPoints = NSx.MetaTags.DataPoints + NSx.MetaTags.Timestamp;
     outputData.TimeStamp = NSx.MetaTags.Timestamp;
     
     NSx_dataIdx = 1;
-    outputData.duration = size(NSx.Data{NSx_dataIdx},2)/30000; % 
+    outputData.duration = size(NSx.Data,2)/30000; % 
 
     
     %% use sync to get stim times:
-    stimulationInformation.stimOn=find(diff(NSx.Data{NSx_dataIdx}(NSx_syncIdx,:)-mean(NSx.Data{NSx_dataIdx}(NSx_syncIdx,:))>3)>.5);
-    stimOff=find(diff(NSx.Data{NSx_dataIdx}(NSx_syncIdx,:)-mean(NSx.Data{NSx_dataIdx}(NSx_syncIdx,:))<-3)>.5);
+    stimulationInformation.stimOn=find(diff(NSx.Data(NSx_syncIdx,:)-mean(NSx.Data(NSx_syncIdx,:))>3)>.5);
+    stimOff=find(diff(NSx.Data(NSx_syncIdx,:)-mean(NSx.Data(NSx_syncIdx,:))<-3)>.5);
     stimulationInformation.stimOff=nan(size(stimulationInformation.stimOn));
     for j=1:numel(stimulationInformation.stimOn)
         if j<numel(stimulationInformation.stimOn)
             next=stimulationInformation.stimOn(j+1);
         else
-            next=numel(NSx.Data{NSx_dataIdx}(NSx_syncIdx,:));
+            next=numel(NSx.Data(NSx_syncIdx,:));
         end
         offIdx=stimOff(find((stimOff>stimulationInformation.stimOn(j)& stimOff<next),1,'first'));
         if ~isempty(offIdx)
@@ -219,6 +235,8 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         end
     end
     
+    stimulationInformation.stimOn = stimulationInformation.stimOn';
+    stimulationInformation.stimOff = stimulationInformation.stimOff';
         
     %% fix stim times if more than one pulse sent per wave
     if(isfield(inputData,'moreThanOnePulsePerWave') && isfield(inputData,'pulseFrequency') && isfield(inputData,'numPulses') && inputData.moreThanOnePulsePerWave)
@@ -269,20 +287,20 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         
     %% extract neural channels from NSx.Data, convert to double, and append time information
     %% this actually takes a decent chunk of time, room for improvement probably
-    neuralLFP = zeros(sum(chanMask)+1,size(NSx.Data{NSx_dataIdx},2)); % preallocate
+    neuralLFP = zeros(sum(chanMask)+1,size(NSx.Data,2)); % preallocate
     
     neuralLFP(1,:) = roundTime((0:size(neuralLFP,2)-1)/NSx.MetaTags.SamplingFreq) + NSx.MetaTags.Timestamp(NSx_dataIdx)/NSx.MetaTags.TimeRes; % time stamps
-    for ch = 1:size(NSx.Data{NSx_dataIdx},1)
+    for ch = 1:size(NSx.Data,1)
         if(chanMask(ch))
-            neuralLFP(chanMapping(ch)+1,:) = double(NSx.Data{NSx_dataIdx}(ch,:)); % idx 1 is for time
+            neuralLFP(chanMapping(ch)+1,:) = double(NSx.Data(ch,:)); % idx 1 is for time
         end
     end
     %% get thresholds for each channel based on non stim data
     thresholdAll = zeros(size(neuralLFP,1)-1,1);
     
     numPoints = size(neuralLFP,2);
-    numPointsActual = 0;
     disp('thresholding data')
+    numPointsActual = 0;
     for stimuli = 1:numel(stimulationInformation.stimOn)+1
         if(numel(stimulationInformation.stimOn)==0)
             stimData = neuralLFP(:,:);
@@ -298,7 +316,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         try
             stimDataFiltered = acausalFilter(stimData')'; % filter the data 
             thresholdAll = thresholdAll + sum(stimDataFiltered.^2,2)/numPoints; % threshold based on SS data
-            numPointsActual = numel(stimDataFiltered) + numPointsActual;
+            numPointsActual = size(stimDataFiltered,2) + numPointsActual;
         catch
         end
     end
@@ -472,7 +490,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     
     for art = 1:artifactSkip:numel(stimulationInformation.stimOn)           
-        if(stimulationInformation.stimOn(art) + artifactDataTime*30000/1000 <= size(neuralLFP,2))
+        if(stimulationInformation.stimOn(art)-inputData.presample > 1 && stimulationInformation.stimOn(art) + artifactDataTime*30000/1000 <= size(neuralLFP,2))
             artifactData.artifact(artifactDataIndex,:,:) = neuralLFP(2:end,stimulationInformation.stimOn(art)-inputData.presample:stimulationInformation.stimOn(art)+floor(artifactDataTime*30000/1000)-1);
             artifactData.t(artifactDataIndex,1) = neuralLFP(1,stimulationInformation.stimOn(art));
             artifactDataIndex = artifactDataIndex + 1;
@@ -499,23 +517,6 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) - outputData.DataPoints(resetIdx)-NSx_trim.MetaTags.Timestamp(resetIdx);
     end
     
-    
-    %% remove channels from ns5, write back as a new ns5 for later use
-    % this is so that the time stamps of non-neural data can be adjusted in the same way
-    % as all of the other data
-    
-    if(iscell(NSx_trim.Data))
-        for n = 1:numel(NSx_trim.Data)
-            NSx_trim.Data{n}(chanMask,:) = [];
-        end
-    else
-        NSx_trim.Data(chanMask,:) = [];
-    end
-    NSx_trim.ElectrodesInfo(chanMask) = [];
-
-% % % %     NSx_trim.MetaTags.Timestamp = [0,NSx_trim.MetaTags.DataPoints(1:end-1)]; % so that recoverPreSync wor
-    saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
-
     %% setup output data
     outputData.artifactData = artifactData;
     outputData.nevData = nevData;
