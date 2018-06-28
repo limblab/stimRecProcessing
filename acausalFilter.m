@@ -5,6 +5,12 @@ function [filteredData] = acausalFilter(data)
     if(isempty(data))
         return;
     end
+    
+    if(size(data,1) == 1 && size(data,2) ~= 1)
+        warning('incorrectly sized matrix, assuming transpose is desired');
+        data = data';
+    end
+    
     numPad = 300;
     % make filter
     [b,a] = butter(6,[500]/(30000/2),'high');
