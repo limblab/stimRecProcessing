@@ -73,6 +73,8 @@
         durationAll = durationAll + outputData.duration;
     end
 
+    
+    
     % save('','artifactData')
 
     % write nev file
