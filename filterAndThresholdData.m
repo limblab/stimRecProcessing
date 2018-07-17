@@ -93,10 +93,10 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     
     %% remove needless spaces from the NSx.ElectrodesInfo.Label field
 
-    for j = 1:numel(NSx.ElectrodesInfo)
-        NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
-        NSx.ElectrodesInfo(j).Label(double(NSx.ElectrodesInfo(j).Label)==0) = []; % remove null values           
-    end
+%     for j = 1:numel(NSx.ElectrodesInfo)
+%         NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
+%         NSx.ElectrodesInfo(j).Label(double(NSx.ElectrodesInfo(j).Label)==0) = []; % remove null values           
+%     end
     % get channels (electrode Id < 97)
     chanMask = [NSx.ElectrodesInfo.ElectrodeID]<97;
     chanMapping = [NSx.ElectrodesInfo.ElectrodeID];    
@@ -105,12 +105,12 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     % chanMask
     if(isfield(inputData,'dukeBoardChannel') && isfield(inputData,'dukeBoardLabel') && inputData.dukeBoardChannel > 0)
         for j = 1:numel(NSx.ElectrodesInfo)
-            if(strcmpi(NSx.ElectrodesInfo(j).Label,inputData.dukeBoardLabel))
+            if(~isempty(strfind(NSx.ElectrodesInfo(j).Label,inputData.dukeBoardLabel)))
                 % make chanMask and chanMapping correct
                 chanMask(j) = 1;
                 chanMapping(j) = inputData.dukeBoardChannel;
                 % remove data recorded on the electrode
-                elecIdx = find([NSx.ElectrodesInfo.ElectrodeID] == inputData.dukeboardChannel);
+                elecIdx = find([NSx.ElectrodesInfo.ElectrodeID] == inputData.dukeBoardChannel);
                 chanMask(elecIdx) = 0;
             end
         end
@@ -124,7 +124,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     if(~isfield(inputData,'useSyncLabel') || isempty(inputData.useSyncLabel))
     %look for sync under the label sync
         for j=1:numel(NSx.ElectrodesInfo)
-            syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'sync'));
+            syncIdx=strfind(NSx.ElectrodesInfo(j).Label,'sync');
             if ~isempty(syncIdx)
                 NSx_syncIdx=j;
                 syncName='sync';
@@ -133,7 +133,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         %if it wasn't called sync, try for matt's 'StimTrig' label:
         if isempty(syncIdx)
             for j=1:numel(NSx.ElectrodesInfo)
-                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'StimTrig'));
+                syncIdx=strfind(NSx.ElectrodesInfo(j).Label,'StimTrig');
                 if ~isempty(syncIdx)
                     NSx_syncIdx=j;
                     syncName='StimTrig';
@@ -143,7 +143,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         %if we didn't find a sync channel, just look for ainp16
         if isempty(syncIdx)
             for j=1:numel(NSx.ElectrodesInfo)
-                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'ainp16'));
+                syncIdx=strfind(NSx.ElectrodesInfo(j).Label,'ainp16');
                 if ~isempty(syncIdx)
                     useSync=false;
                     NSx_syncIdx=j;
@@ -157,7 +157,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         if useSync
             %find aIdx:
             for j=1:numel(NSx.ElectrodesInfo)
-                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'sync'));
+                syncIdx=strfind(NSx.ElectrodesInfo(j).Label,'sync');
                 if ~isempty(syncIdx)
                     NSx_syncIdx=j;
                     syncName='sync';
@@ -165,7 +165,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             end
         else
             for j=1:numel(NSx.ElectrodesInfo)
-                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'ainp16'));
+                syncIdx=strfind(NSx.ElectrodesInfo(j).Label,'ainp16');
                 if ~isempty(syncIdx)
                     useSync=false;
                     NSx_syncIdx=j;
@@ -181,7 +181,13 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     fieldNames = fieldnames(NSx);
     for field_idx = 1:numel(fieldNames)
         if(strcmp(fieldNames(field_idx),'Data') == 1)
-            NSx_trim.Data = NSx.Data(~chanMask,:);
+            if(iscell(NSx.Data))
+                for data_idx = 1:numel(NSx.Data)
+                    NSx_trim.Data{data_idx} = NSx.Data{data_idx}(~chanMask,:);
+                end
+            else
+                NSx_trim.Data = NSx.Data(~chanMask,:);
+            end
         else
             NSx_trim.(fieldNames{field_idx}) = NSx.(fieldNames{field_idx});
         end
@@ -303,7 +309,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     numPointsActual = 0;
     for stimuli = 1:numel(stimulationInformation.stimOn)+1
         if(numel(stimulationInformation.stimOn)==0)
-            stimData = neuralLFP(:,:);
+            stimData = neuralLFP(2:end,:);
         elseif(stimuli == 1) % all data before first stim
             stimData = neuralLFP(2:end,1:stimulationInformation.stimOn(stimuli)-1*30);
         elseif(stimuli == numel(stimulationInformation.stimOn)+1) % all data after last stim artifact
@@ -318,6 +324,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             thresholdAll = thresholdAll + sum(stimDataFiltered.^2,2)/numPoints; % threshold based on SS data
             numPointsActual = size(stimDataFiltered,2) + numPointsActual;
         catch
+            warning('thresholding error')
         end
     end
     

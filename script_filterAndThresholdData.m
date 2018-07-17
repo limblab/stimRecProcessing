@@ -2,19 +2,19 @@
     clear
     pwd = cd;
 
-    inputData.folderpath= 'C:\Users\jts3256\Desktop\20161104\'; % must have \ at the end
+    inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_20180717_RW_dukeProjBox_asymmetric\chan96\'; % must have \ at the end
 %     inputData.folderpath = 'C:\Users\ttp603\Desktop\data\sorting\butter\Butter_20180504_cuneate\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
 %     inputData.mapFile='mapFileY:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
-%     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
-    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
+    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
+%     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
     inputData.task='taskRW';
     inputData.ranBy='ranByJoseph'; 
     inputData.array1='arrayLeftS1'; 
-    inputData.monkey='monkeyChips';
+    inputData.monkey='monkeyHan';
     inputData.labnum = 6;
     
-    inputData.dukeBoardChannel = -1;
+    inputData.dukeBoardChannel = 96;
     inputData.dukeBoardLabel = 'ainp15';
 
     inputData.badChList=0;
@@ -31,14 +31,15 @@
     inputData.postOffset = 25;
 
     inputData.moreThanOnePulsePerWave = 0;
-    inputData.numPulses = 10;
-    inputData.pulseFrequency = 100;
+    inputData.numPulses = 100;
+    inputData.pulseFrequency = 200;
 
     inputData.thresholdMult = 3.5;
     inputData.artifactSkip = 1;
     inputData.maxAmplitude = 1000; % in uV
 
     inputData.maxChunkLength = 5000*30; % 5 second chunk maximum
+    
 %% get spike crossing for all files, write a nev file
     cd(inputData.folderpath)
     fileList = dirSorted('*.ns5');
@@ -50,7 +51,6 @@
     durationAll = 0;
     % process data
     for f = 1:numel(fileList)
-        warning('off')
         inputData.filename = fileList(f).name;
 
         [~,outputData] = filterAndThresholdData(inputData);
@@ -87,7 +87,6 @@
 
     cd(pwd);
     disp('DONE -- CAN CONTINUE')
-    warning('on')
 
 %% sort *_merged and call it *_merged-s, rename ns1 as well (?)
 
