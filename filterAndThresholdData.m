@@ -89,13 +89,14 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         warning('openNSx does not support the uV option (?). This may somehow affect the amplitude of collected spikes');
     end
     
-    NSx_trim = NSx; % store a version for future trimming
-    % remove needless spaces from the NSx.ElectrodesInfo.Label field
+    NSx_trim = []; % store a version for trimming
+    
+    %% remove needless spaces from the NSx.ElectrodesInfo.Label field
 
-    for j = 1:numel(NSx.ElectrodesInfo)
-        NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
-        NSx.ElectrodesInfo(j).Label(double(NSx.ElectrodesInfo(j).Label)==0) = []; % remove null values           
-    end
+%     for j = 1:numel(NSx.ElectrodesInfo)
+%         NSx.ElectrodesInfo(j).Label = strtrim(NSx.ElectrodesInfo(j).Label); % remove spaces
+%         NSx.ElectrodesInfo(j).Label(double(NSx.ElectrodesInfo(j).Label)==0) = []; % remove null values           
+%     end
     % get channels (electrode Id < 97)
     chanMask = [NSx.ElectrodesInfo.ElectrodeID]<97;
     chanMapping = [NSx.ElectrodesInfo.ElectrodeID];    
@@ -104,7 +105,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     % chanMask
     if(isfield(inputData,'dukeBoardChannel') && isfield(inputData,'dukeBoardLabel') && inputData.dukeBoardChannel > 0)
         for j = 1:numel(NSx.ElectrodesInfo)
-            if(strcmpi(NSx.ElectrodesInfo(j).Label,inputData.dukeBoardLabel))
+            if(~isempty(strfind(NSx.ElectrodesInfo(j).Label,inputData.dukeBoardLabel)))
                 % make chanMask and chanMapping correct
                 chanMask(j) = 1;
                 chanMapping(j) = inputData.dukeBoardChannel;
@@ -123,7 +124,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     if(~isfield(inputData,'useSyncLabel') || isempty(inputData.useSyncLabel))
     %look for sync under the label sync
         for j=1:numel(NSx.ElectrodesInfo)
-            syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'sync'));
+            syncIdx=strfind(NSx.ElectrodesInfo(j).Label,'sync');
             if ~isempty(syncIdx)
                 NSx_syncIdx=j;
                 syncName='sync';
@@ -132,7 +133,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         %if it wasn't called sync, try for matt's 'StimTrig' label:
         if isempty(syncIdx)
             for j=1:numel(NSx.ElectrodesInfo)
-                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'StimTrig'));
+                syncIdx=strfind(NSx.ElectrodesInfo(j).Label,'StimTrig');
                 if ~isempty(syncIdx)
                     NSx_syncIdx=j;
                     syncName='StimTrig';
@@ -142,7 +143,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         %if we didn't find a sync channel, just look for ainp16
         if isempty(syncIdx)
             for j=1:numel(NSx.ElectrodesInfo)
-                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'ainp16'));
+                syncIdx=strfind(NSx.ElectrodesInfo(j).Label,'ainp16');
                 if ~isempty(syncIdx)
                     useSync=false;
                     NSx_syncIdx=j;
@@ -156,7 +157,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         if useSync
             %find aIdx:
             for j=1:numel(NSx.ElectrodesInfo)
-                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'sync'));
+                syncIdx=strfind(NSx.ElectrodesInfo(j).Label,'sync');
                 if ~isempty(syncIdx)
                     NSx_syncIdx=j;
                     syncName='sync';
@@ -164,7 +165,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             end
         else
             for j=1:numel(NSx.ElectrodesInfo)
-                syncIdx=find(strcmp(NSx.ElectrodesInfo(j).Label,'ainp16'));
+                syncIdx=strfind(NSx.ElectrodesInfo(j).Label,'ainp16');
                 if ~isempty(syncIdx)
                     useSync=false;
                     NSx_syncIdx=j;
@@ -174,6 +175,27 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
         end
     end
     
+    %% remove channels from ns5, write back as a new ns5 for later use
+    % this is so that the time stamps of non-neural data can be adjusted in the same way
+    % as all of the other data
+    fieldNames = fieldnames(NSx);
+    for field_idx = 1:numel(fieldNames)
+        if(strcmp(fieldNames(field_idx),'Data') == 1)
+            if(iscell(NSx.Data))
+                for data_idx = 1:numel(NSx.Data)
+                    NSx_trim.Data{data_idx} = NSx.Data{data_idx}(~chanMask,:);
+                end
+            else
+                NSx_trim.Data = NSx.Data(~chanMask,:);
+            end
+        else
+            NSx_trim.(fieldNames{field_idx}) = NSx.(fieldNames{field_idx});
+        end
+    end
+    NSx_trim.ElectrodesInfo(chanMask) = [];
+    
+    saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
+   
     %% append data, store where data was combined
     
     outputData.preSyncTimes = [];
@@ -277,6 +299,8 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             neuralLFP(chanMapping(ch)+1,:) = double(NSx.Data(ch,:)); % idx 1 is for time
         end
     end
+    % NSx.Data = [];
+    
     %% get thresholds for each channel based on non stim data
     thresholdAll = zeros(size(neuralLFP,1)-1,1);
     
@@ -285,7 +309,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     numPointsActual = 0;
     for stimuli = 1:numel(stimulationInformation.stimOn)+1
         if(numel(stimulationInformation.stimOn)==0)
-            stimData = neuralLFP(:,:);
+            stimData = neuralLFP(2:end,:);
         elseif(stimuli == 1) % all data before first stim
             stimData = neuralLFP(2:end,1:stimulationInformation.stimOn(stimuli)-1*30);
         elseif(stimuli == numel(stimulationInformation.stimOn)+1) % all data after last stim artifact
@@ -300,6 +324,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             thresholdAll = thresholdAll + sum(stimDataFiltered.^2,2)/numPoints; % threshold based on SS data
             numPointsActual = size(stimDataFiltered,2) + numPointsActual;
         catch
+            warning('thresholding error')
         end
     end
     
@@ -455,7 +480,6 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     clear spikeChan
     clear spikeWaves
         
-    
     % store artifact data
     artifactDataIndex = 1;
     artifactData.t = zeros(1000,1);
@@ -472,7 +496,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     
     for art = 1:artifactSkip:numel(stimulationInformation.stimOn)           
-        if(stimulationInformation.stimOn(art) + artifactDataTime*30000/1000 <= size(neuralLFP,2))
+        if(stimulationInformation.stimOn(art)-inputData.presample > 1 && stimulationInformation.stimOn(art) + artifactDataTime*30000/1000 <= size(neuralLFP,2))
             artifactData.artifact(artifactDataIndex,:,:) = neuralLFP(2:end,stimulationInformation.stimOn(art)-inputData.presample:stimulationInformation.stimOn(art)+floor(artifactDataTime*30000/1000)-1);
             artifactData.t(artifactDataIndex,1) = neuralLFP(1,stimulationInformation.stimOn(art));
             artifactDataIndex = artifactDataIndex + 1;
@@ -499,23 +523,6 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             stimulationInformation.stimOn(stimulationInformation.stimOn > outputData.DataPoints(resetIdx)) - outputData.DataPoints(resetIdx)-NSx_trim.MetaTags.Timestamp(resetIdx);
     end
     
-    
-    %% remove channels from ns5, write back as a new ns5 for later use
-    % this is so that the time stamps of non-neural data can be adjusted in the same way
-    % as all of the other data
-    
-    if(iscell(NSx_trim.Data))
-        for n = 1:numel(NSx_trim.Data)
-            NSx_trim.Data{n}(chanMask,:) = [];
-        end
-    else
-        NSx_trim.Data(chanMask,:) = [];
-    end
-    NSx_trim.ElectrodesInfo(chanMask) = [];
-
-% % % %     NSx_trim.MetaTags.Timestamp = [0,NSx_trim.MetaTags.DataPoints(1:end-1)]; % so that recoverPreSync wor
-    saveNSx(NSx_trim,[inputData.folderpath,inputData.filename(1:end-4) '_spikesExtracted.ns5'],'noreport');
-
     %% setup output data
     outputData.artifactData = artifactData;
     outputData.nevData = nevData;

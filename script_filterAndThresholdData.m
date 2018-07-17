@@ -33,14 +33,15 @@
     inputData.postOffset = 25;
 
     inputData.moreThanOnePulsePerWave = 0;
-    inputData.numPulses = 10;
-    inputData.pulseFrequency = 100;
+    inputData.numPulses = 100;
+    inputData.pulseFrequency = 200;
 
     inputData.thresholdMult = 3.5;
     inputData.artifactSkip = 1;
     inputData.maxAmplitude = 1000; % in uV
 
     inputData.maxChunkLength = 5000*30; % 5 second chunk maximum
+    
 %% get spike crossing for all files, write a nev file
     cd(inputData.folderpath)
     fileList = dirSorted('*.ns5');
@@ -52,7 +53,6 @@
     durationAll = 0;
     % process data
     for f = 1:numel(fileList)
-        warning('off')
         inputData.filename = fileList(f).name;
 
         [~,outputData] = filterAndThresholdData(inputData);
@@ -61,8 +61,8 @@
         stimInfo.waveSent = outputData.waveforms.waveSent';
         stimInfo.parameters = outputData.waveforms.parameters;
        
-        save([inputData.folderpath,inputData.filename(1:end-4),'_outputData.mat'],'outputData');
-        save([inputData.folderpath,inputData.filename(1:end-4),'_stimInfo.mat'],'stimInfo');
+        save([inputData.folderpath,inputData.filename(1:end-4),'_outputData.mat'],'outputData','-v7.3');
+        save([inputData.folderpath,inputData.filename(1:end-4),'_stimInfo.mat'],'stimInfo','-v7.3');
         % append nev data
         if(f == 1)
             nevDataAll = outputData.nevData;
@@ -75,6 +75,8 @@
         durationAll = durationAll + outputData.duration;
     end
 
+    
+    
     % save('','artifactData')
 
     % write nev file
@@ -89,7 +91,6 @@
 
     cd(pwd);
     disp('DONE -- CAN CONTINUE')
-    warning('on')
 
 %% sort *_merged and call it *_merged-s, rename ns1 as well (?)
 
