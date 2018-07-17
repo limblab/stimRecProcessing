@@ -5,7 +5,10 @@ function [] = writeNEV(data, packetWidth, filename, mapfileName, comments )
 timeSpikes = data.ts;
 waveformSpikes = data.waveforms/0.254; % 1 bit is 254nV 
 chanSpikes = data.elec;
-
+unitSpikes = [];
+if(isfield(data,'unit'))
+    unitSpikes = data.unit;
+end
 % open the NEV file -- add .nev extension if necessary
 [pathstr,fname,fext]=fileparts(filename);
 fid = fopen(strcat(fname,'.NEV'),'Wb');
@@ -281,7 +284,11 @@ for spikeIdx = 1:numel(timeSpikes)
 %     packetInfoWrite{end+1,1} = chanSpikes(spikeIdx,1);
 %     precision{end+1,1} = 'bit16';
     % unit classification #, 1 byte, 0 is unclassified
-    fwrite(fid,0,'bit16',0,'ieee-le');
+    if(~isempty(unitSpikes))
+        fwrite(fid,unitSpikes(spikeIdx),'bit16',0,'ieee-le');
+    else
+        fwrite(fid,0,'bit16',0,'ieee-le');
+    end
 %     packetInfoWrite{end+1,1} = 0;
 %     precision{end+1,1} = 'bit8';
 %     % reserved, 1 byte, 0

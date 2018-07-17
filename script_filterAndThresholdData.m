@@ -3,18 +3,20 @@
     pwd = cd;
 
 %     inputData.folderpath= 'C:\Users\tucker\Desktop\processing\'; % must have \ at the end
-    inputData.folderpath = 'C:\Users\ttp603\Desktop\data\sorting\butter\Butter_20180504_cuneate\';
+    inputData.folderpath = 'C:\Users\jts3256.GOB\Desktop\Han_20180717_RW_dukeProjBox_asymmetric\chan96\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
-    inputData.mapFile='mapFileY:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
+    
+    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
+%     inputData.mapFile='mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
 %     inputData.mapFile = 'mapFileZ:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
 
-    inputData.task='taskTRT';
+    inputData.task='taskRW';
     inputData.ranBy='ranByJoseph'; 
     inputData.array1='arrayLeftS1'; 
-    inputData.monkey='monkeyButter';
+    inputData.monkey='monkeyHan';
     inputData.labnum = 6;
     
-    inputData.dukeBoardChannel = -1;
+    inputData.dukeBoardChannel = 96;
     inputData.dukeBoardLabel = 'ainp15';
 
     inputData.badChList=0;

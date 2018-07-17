@@ -109,7 +109,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
                 chanMask(j) = 1;
                 chanMapping(j) = inputData.dukeBoardChannel;
                 % remove data recorded on the electrode
-                elecIdx = find([NSx.ElectrodesInfo.ElectrodeID] == inputData.dukeboardChannel);
+                elecIdx = find([NSx.ElectrodesInfo.ElectrodeID] == inputData.dukeBoardChannel);
                 chanMask(elecIdx) = 0;
             end
         end
