@@ -2,26 +2,30 @@
     clear
     pwd = cd;
 
-    inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_20180717_RW_dukeProjBox_asymmetric\chan96\'; % must have \ at the end
+    inputData.folderpath= 'C:\Users\jts3256\Desktop\Duncan_20181212_stimRec\'; % must have \ at the end
 %     inputData.folderpath = 'C:\Users\ttp603\Desktop\data\sorting\butter\Butter_20180504_cuneate\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
 %     inputData.mapFile='mapFileY:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
-    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
-%     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Chips_12H1\map_files\left S1\SN 6251-001455.cmp';
+%     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
+    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Duncan_17L1\mapfiles\right S1 20180919\SN 6251-001804.cmp';
+    
     inputData.task='taskRW';
     inputData.ranBy='ranByJoseph'; 
     inputData.array1='arrayLeftS1'; 
-    inputData.monkey='monkeyHan';
+    inputData.monkey='monkeyDuncan';
     inputData.labnum = 6;
     
-    inputData.dukeBoardChannel = 96;
+    inputData.templateSubtract = 0;
+    
+    inputData.dukeBoardChannel = -1;
     inputData.dukeBoardLabel = 'ainp15';
 
     inputData.badChList=0;
     inputData.interpulse=.000053;%in s
     inputData.pWidth1=.0002;
     inputData.pWidth2=.0002;
-
+    inputData.blankTime = 0.25; %ms this includes the preoffset, 0.25 seems to work well
+    
     % functionName='processStimArtifactData';
 
     inputData.artifactDataTime = 10; % in ms
@@ -31,8 +35,8 @@
     inputData.postOffset = 25;
 
     inputData.moreThanOnePulsePerWave = 0;
-    inputData.numPulses = 100;
-    inputData.pulseFrequency = 200;
+    inputData.numPulses = 39;
+    inputData.pulseFrequency = 3300;
 
     inputData.thresholdMult = 3.5;
     inputData.artifactSkip = 1;

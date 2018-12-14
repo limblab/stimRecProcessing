@@ -14,10 +14,11 @@ function [filteredData] = acausalFilter(data)
     numPad = 300;
     % make filter
     [b,a] = butter(6,[500]/(30000/2),'high');
+%     [b,a] = butter(2,[500,2000]/(30000/2),'bandpass');
     % pad data
-    data = [repmat(mean(data(1:min(100,size(data,1)),:)),[numPad,1]);...
+    data = [repmat(mean(data(1:min(15,size(data,1)),:)),[numPad,1]);...
         data;...
-        repmat(mean(data(end-min(99,size(data,1)-1):end,:)),[numPad,1])];
+        repmat(mean(data(end-min(15,size(data,1)-1):end,:)),[numPad,1])];
     % acausal filter
     filteredData = flip(filter(b,a,flip(data,1)),1);
     

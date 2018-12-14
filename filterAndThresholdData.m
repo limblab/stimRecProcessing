@@ -246,7 +246,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     if(isfield(inputData,'moreThanOnePulsePerWave') && isfield(inputData,'pulseFrequency') && isfield(inputData,'numPulses') && inputData.moreThanOnePulsePerWave)
         stimOnTemp = [];
         for stimIdx = 1:numel(stimulationInformation.stimOn)
-            stimOnTemp = [stimOnTemp; stimulationInformation.stimOn(stimIdx) + 1/inputData.pulseFrequency*30000*(0:1:(inputData.numPulses-1))'];
+            stimOnTemp = [stimOnTemp; stimulationInformation.stimOn(stimIdx) + floor(1/inputData.pulseFrequency*30000*(0:1:(inputData.numPulses-1)))'];
         end
         stimulationInformation.stimOn = stimOnTemp;
         stimulationInformation.stimOff = stimulationInformation.stimOn + 2;
@@ -301,7 +301,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     % NSx.Data = [];
     
-    %% get thresholds for each channel based on non stim data
+    %% get thresholds for each channel based on non stim data. 
     thresholdAll = zeros(size(neuralLFP,1)-1,1);
     
     numPoints = size(neuralLFP,2);
@@ -314,22 +314,42 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             stimData = neuralLFP(2:end,1:stimulationInformation.stimOn(stimuli)-1*30);
         elseif(stimuli == numel(stimulationInformation.stimOn)+1) % all data after last stim artifact
             stimData = neuralLFP(2:end,stimulationInformation.stimOn(stimuli-1)+5*30:end);
-        else % data before ith stim back to ith-1 
-            if(stimulationInformation.stimOn(stimuli) - 5*30 > stimulationInformation.stimOn(stimuli-1)) % only count the data as non stim if 5 ms away from previous artifact
-                stimData = neuralLFP(2:end,stimulationInformation.stimOn(stimuli-1)+5*30:stimulationInformation.stimOn(stimuli)-1*30);
-            end
+        elseif(stimulationInformation.stimOn(stimuli) - 5*30 > stimulationInformation.stimOn(stimuli-1)) % only count the data as non stim if 5 ms away from previous artifact
+            stimData = neuralLFP(2:end,stimulationInformation.stimOn(stimuli-1)+5*30:stimulationInformation.stimOn(stimuli)-2*30);
+        else
+            stimData =[];
         end
-        try
-            stimDataFiltered = acausalFilter(stimData')'; % filter the data 
-            thresholdAll = thresholdAll + sum(stimDataFiltered.^2,2)/numPoints; % threshold based on SS data
-            numPointsActual = size(stimDataFiltered,2) + numPointsActual;
-        catch
-            warning('thresholding error')
+        
+        if(~isempty(stimData))
+            try
+                stimDataFiltered = acausalFilter(stimData')'; % filter the data 
+                
+                % compute threshold related information
+                thresholdAll = thresholdAll + sum(stimDataFiltered.^2,2)/numPoints; % threshold based on SS data
+                numPointsActual = size(stimDataFiltered,2) + numPointsActual;
+                
+            catch
+                warning('thresholding error')
+            end
         end
     end
     
     thresholdAll = sqrt(thresholdAll*numPoints/numPointsActual);
         
+    %% build templates for each channel and waveform
+    if(isfield('inputData','templateSubtract') && inputData.templateSubtract)
+        templates = zeros(size(neuralLFP,1)-1,numel(unique(waveforms.waveSent)),size(neuralLFP,2));
+        for stimuli = 2:numel(stimulationInformation.stimOn)
+            stimData = neuralLFP(2:end,stimulationInformation.stimOn(stimuli-1):stimulationInformation.stimOn(stimuli)-10);
+            stimDataFiltered = acausalFilter(stimData')'/sum(waveforms.waveSent(stimuli)==waveforms.waveSent);
+            stimDataFiltered = reshape(stimDataFiltered,size(stimDataFiltered,1),1,size(stimDataFiltered,2));
+            templates(:,waveforms.waveSent(stimuli),1:size(stimData,2)) = ...
+                templates(:,waveforms.waveSent(stimuli),1:size(stimData,2)) + stimDataFiltered;
+                
+        end
+    end
+            
+    %%
 
     spikeWaves = zeros(90000,lengthWave);
     spikeTimes = zeros(90000,1);
@@ -344,14 +364,19 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
                 stimData = neuralLFP(ch+1,:);
             elseif(stimIdx == 1) % all data before first stim
                 stimData = neuralLFP(ch+1,1:stimulationInformation.stimOn(stimIdx));
-            elseif(stimIdx == numel(stimulationInformation.stimOn) + 1) % all data after last stim
+            elseif(stimIdx == numel(stimulationInformation.stimOn) + 1) % all data after last stimList
                 stimData = neuralLFP(ch+1,stimulationInformation.stimOn(stimIdx-1):end);
             else % data before ith stim up to ith-1 
-                stimData = neuralLFP(ch+1,stimulationInformation.stimOn(stimIdx-1):stimulationInformation.stimOn(stimIdx));
+                stimData = neuralLFP(ch+1,stimulationInformation.stimOn(stimIdx-1):stimulationInformation.stimOn(stimIdx)-10);
             end
 
             % filter backwards on the channel
             stimData = acausalFilter(stimData');
+            
+            if(isfield('inputData','templateSubtract') && inputData.templateSubtract)
+                stimData = stimData - squeeze(templates(ch,waveforms.waveSent(stimIdx),1:size(stimData,1)));
+            end
+            
             % compute threshold
             threshold = thresholdMult*thresholdAll(ch);
             if(abs(threshold) < 1) % if the threshold is super small, set it to a large value because the channel is bad
@@ -361,8 +386,12 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             %% get threshold crossings
             thresholdCrossings = find(stimData>abs(threshold)); % acausal filtered data, positive threshold
             % check if too close to beginning or end
-            mask=thresholdCrossings>(preOffset+1) & thresholdCrossings <numel(stimData)-(postOffset+1);
-
+            if(isfield(inputData,'blankTime'))
+                mask=thresholdCrossings>(preOffset+1+floor(inputData.blankTime*30)) & thresholdCrossings <numel(stimData)-(postOffset+1);
+            else
+                mask=thresholdCrossings>(preOffset+1) & thresholdCrossings <numel(stimData)-(postOffset+1);
+            end
+            
             thresholdCrossings = thresholdCrossings(mask);
             %% append data before and after stimData to get spikes near the edges
             numAppend = 100;
