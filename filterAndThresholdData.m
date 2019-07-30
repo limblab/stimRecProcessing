@@ -4,6 +4,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     outputData=[];
     outputFigures = [];
     
+
     % check to see if file exists
     if(~isfield(inputData,'filename') || ~isfield(inputData,'folderpath') || exist([inputData.folderpath,inputData.filename],'file')==0)
         error('file was not provided or does not exist');
@@ -18,6 +19,12 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     if(~isfield(inputData,'mapFile'))
         error('no map file')
     end
+    
+    % check to see if good chan list exists
+    if(~isfield(input_data,'good_chan_list'))
+        error('need to supply good_chan_list')
+    end
+    
     mapData=loadMapFile(inputData.mapFile(8:end));
     
     % check if presample exists
@@ -357,7 +364,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
 
     spikeNum = 1;
     disp('extracting spikes')
-    for ch = 1:(size(neuralLFP,1)-1)
+    for ch = input_data.good_chan_list
         for stimIdx = 1:numel(stimulationInformation.stimOn)+1
             stimData = [];
             if(numel(stimulationInformation.stimOn) == 0)

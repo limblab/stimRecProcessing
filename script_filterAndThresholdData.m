@@ -2,7 +2,7 @@
     clear
     pwd = cd;
 
-    inputData.folderpath= 'C:\Users\jts3256\Desktop\Duncan_20181212_stimRec\'; % must have \ at the end
+    inputData.folderpath= 'C:\Users\jts3256\Desktop\Duncan_20181214_stimRec\'; % must have \ at the end
 %     inputData.folderpath = 'C:\Users\ttp603\Desktop\data\sorting\butter\Butter_20180504_cuneate\';
 %     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
 %     inputData.mapFile='mapFileY:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
@@ -10,18 +10,19 @@
     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Duncan_17L1\mapfiles\right S1 20180919\SN 6251-001804.cmp';
     
 
-    inputData.task='taskRW';
+    inputData.task='taskBD';
     inputData.ranBy='ranByJoseph'; 
     inputData.array1='arrayLeftS1'; 
-    inputData.monkey='monkeyDuncan';
+    inputData.monkey='monkeyHan';
     inputData.labnum = 6;
     
     inputData.templateSubtract = 0;
     
-    inputData.dukeBoardChannel = -1;
+    inputData.dukeBoardChannel = 21;
     inputData.dukeBoardLabel = 'ainp15';
 
-    inputData.badChList=0;
+%     inputData.good_chan_list=1:96;
+    inputData.good_chan_list = inputData.dukeBoardChannel;
     inputData.interpulse=.000053;%in s
     inputData.pWidth1=.0002;
     inputData.pWidth2=.0002;
