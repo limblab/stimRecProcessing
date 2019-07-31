@@ -21,7 +21,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     
     % check to see if good chan list exists
-    if(~isfield(input_data,'good_chan_list'))
+    if(~isfield(inputData,'good_chan_list'))
         error('need to supply good_chan_list')
     end
     
@@ -364,7 +364,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
 
     spikeNum = 1;
     disp('extracting spikes')
-    for ch = input_data.good_chan_list
+    for ch = inputData.good_chan_list
         for stimIdx = 1:numel(stimulationInformation.stimOn)+1
             stimData = [];
             if(numel(stimulationInformation.stimOn) == 0)

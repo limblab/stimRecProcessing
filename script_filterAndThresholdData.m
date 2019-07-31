@@ -2,12 +2,10 @@
     clear
     pwd = cd;
 
-    inputData.folderpath= 'C:\Users\jts3256\Desktop\Duncan_20181214_stimRec\'; % must have \ at the end
-%     inputData.folderpath = 'C:\Users\ttp603\Desktop\data\sorting\butter\Butter_20180504_cuneate\';
-%     inputData.folderpath = 'D:\Lab\Data\StimArtifact\testData\';
-%     inputData.mapFile='mapFileY:\limblab\lab_folder\Animal-Miscellany\Butter_17D2\Right Cuneate Implant 2018_03_06\SN 6250-001799.cmp';
-%     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
-    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Duncan_17L1\mapfiles\right S1 20180919\SN 6251-001804.cmp';
+    inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_20190731_trains_differentIPIs\'; % must have \ at the end
+
+    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
+%     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Duncan_17L1\mapfiles\right S1 20180919\SN 6251-001804.cmp';
     
 
     inputData.task='taskBD';
@@ -18,7 +16,7 @@
     
     inputData.templateSubtract = 0;
     
-    inputData.dukeBoardChannel = 21;
+    inputData.dukeBoardChannel = 44;
     inputData.dukeBoardLabel = 'ainp15';
 
 %     inputData.good_chan_list=1:96;
@@ -40,7 +38,7 @@
     inputData.numPulses = 39;
     inputData.pulseFrequency = 3300;
 
-    inputData.thresholdMult = 3.5;
+    inputData.thresholdMult = 3;
     inputData.artifactSkip = 1;
     inputData.maxAmplitude = 1000; % in uV
 
