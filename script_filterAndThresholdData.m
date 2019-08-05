@@ -2,7 +2,7 @@
     clear
     pwd = cd;
 
-    inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_20190731_trains_differentIPIs\'; % must have \ at the end
+    inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_stim_data\Han_20190401_trains_dblPulse\chan60\'; % must have \ at the end
 
     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
 %     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Duncan_17L1\mapfiles\right S1 20180919\SN 6251-001804.cmp';
@@ -16,7 +16,7 @@
     
     inputData.templateSubtract = 0;
     
-    inputData.dukeBoardChannel = 44;
+    inputData.dukeBoardChannel = 60;
     inputData.dukeBoardLabel = 'ainp15';
 
 %     inputData.good_chan_list=1:96;
