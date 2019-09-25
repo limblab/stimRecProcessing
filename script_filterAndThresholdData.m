@@ -2,13 +2,13 @@
     clear
     pwd = cd;
 
-    inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_stim_data\Han_20190401_trains_dblPulse\chan60\'; % must have \ at the end
+    inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_stim_data\Han_20190923_trains_noAmp\'; % must have \ at the end
 
     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
 %     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Duncan_17L1\mapfiles\right S1 20180919\SN 6251-001804.cmp';
     
 
-    inputData.task='taskBD';
+    inputData.task='taskCObump';
     inputData.ranBy='ranByJoseph'; 
     inputData.array1='arrayLeftS1'; 
     inputData.monkey='monkeyHan';
@@ -16,14 +16,18 @@
     
     inputData.templateSubtract = 0;
     
-    inputData.dukeBoardChannel = 60;
+    inputData.dukeBoardChannel = -1; % -1 means not used
     inputData.dukeBoardLabel = 'ainp15';
 
-%     inputData.good_chan_list=1:96;
-    inputData.good_chan_list = inputData.dukeBoardChannel;
-    inputData.interpulse=.000053;%in s
-    inputData.pWidth1=.0002;
-    inputData.pWidth2=.0002;
+    % multiplies signal after stimulation based on recorded gain for that
+    % stim_code. See analyzeNS5Data in proc-joe
+    inputData.softwareAmplification = 0;
+    inputData.dukeBoard.mdl = [];
+    inputData.dukeBoard.link_func = [];
+    inputData.dukeBoard.max_time_post_stim = [];
+    
+    inputData.good_chan_list=1:96;
+%     inputData.good_chan_list = inputData.dukeBoardChannel;
     inputData.blankTime = 0.25; %ms this includes the preoffset, 0.25 seems to work well
     
     % functionName='processStimArtifactData';
@@ -38,11 +42,13 @@
     inputData.numPulses = 39;
     inputData.pulseFrequency = 3300;
 
-    inputData.thresholdMult = 3;
+    inputData.thresholdMult = 3.5;
     inputData.artifactSkip = 1;
     inputData.maxAmplitude = 1000; % in uV
 
     inputData.maxChunkLength = 5000*30; % 5 second chunk maximum
+    
+    
     
 %% get spike crossing for all files, write a nev file
     cd(inputData.folderpath)
@@ -77,10 +83,6 @@
         durationAll = durationAll + outputData.duration;
     end
 
-    
-    
-    % save('','artifactData')
-
     % write nev file
     disp('writing nev file')
 
@@ -97,6 +99,8 @@
 %% sort *_merged and call it *_merged-s, rename ns1 as well (?)
 
 %% load in *_merged-s, split apart the units,
+
+
 %% save the units to a new nev file as well as to output data and a stimInfo file
 % the new nev file (*_spikesExtracted*), the new ns5 (*_spikesExtracted*), and the stimInfo mat file are needed for
 % further processing. Everything else is excess
@@ -152,3 +156,8 @@
     end
     
     disp('done replacing spike info')
+    
+    
+    
+    
+    

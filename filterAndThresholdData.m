@@ -86,6 +86,25 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     artifactDataTime = inputData.artifactDataTime; % in ms
      
+    if(~isfield(inputData,'softwareAmplification'))
+        error('no softwareAmplification field');
+    elseif(inputData.softwareAmplification && (isempty(inputData.dukeBoard.mdl) || isempty(inputData.dukeBoard.link_func)))
+        % try to find file with glm_data in filename
+        glm_file = dir([inputData.folderpath,'*glm_data*']);
+        if(~isempty(glm_file))
+            load([glm_file.folder,'/',glm_file.name]);
+            inputData.dukeBoard.mdl = b;
+            inputData.dukeBoard.link_func = link_func;
+            inputData.dukeBoard.max_time_post_stim = max_time_post_stim;
+            clear b; clear link_func; clear max_time_post_stim;
+            
+            warning('loaded a glm from a file. Stop if this is not desired');
+        else
+            % else throw an error
+            error('supposed to do software amplification but glm field is empty and can''t find file with glm_data in name');
+        end
+    end
+        
     %% load file
     disp(['working on:', inputData.filename])
 
@@ -97,6 +116,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
     
     NSx_trim = []; % store a version for trimming
+    
     
     %% remove needless spaces from the NSx.ElectrodesInfo.Label field
 
@@ -265,8 +285,11 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     underscoreIdx = find(inputData.filename=='_');
     [~,fname,~] = fileparts(inputData.filename);
     waveformFilename = strcat(fname(1:underscoreIdx(end)),'waveformsSent',fname(underscoreIdx(end):end),'.mat');
+    waveformFilenameAbridged = strcat(fname(1:underscoreIdx(end)),'waveformsSent_',num2str(str2num(fname(underscoreIdx(end)+1:end))),'.mat');
     if(exist([inputData.folderpath,waveformFilename])~=0)
         load([inputData.folderpath,waveformFilename])
+    elseif(exist([inputData.folderpath,waveformFilenameAbridged])~=0)
+        load([inputData.folderpath,waveformFilenameAbridged]);
     elseif(~exist(waveformFilename)~=0)
         warning('no waveform sent file exists, continuing with an arbitrary one');
         waveformFilename = strcat(fname(1:underscoreIdx(end)),'waveformsSent',fname(underscoreIdx(end):end),'.mat');
@@ -277,7 +300,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     end
         
     %% add fake stim times so that the data processed is not too large and does not slow things down
-    %% this might not need to be here anymore because 
+    %% this might not need to be here anymore because ... (oops) 
     if(isfield(inputData,'maxChunkLength'))
         stimOnMask = ones(numel(stimulationInformation.stimOn),1);
         stimOnTemp = stimulationInformation.stimOn;
@@ -373,7 +396,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
                 stimData = neuralLFP(ch+1,1:stimulationInformation.stimOn(stimIdx));
             elseif(stimIdx == numel(stimulationInformation.stimOn) + 1) % all data after last stimList
                 stimData = neuralLFP(ch+1,stimulationInformation.stimOn(stimIdx-1):end);
-            else % data before ith stim up to ith-1 
+            else % data before ith-1 stim up to ith stim
                 stimData = neuralLFP(ch+1,stimulationInformation.stimOn(stimIdx-1):stimulationInformation.stimOn(stimIdx)-10);
             end
 
@@ -390,6 +413,25 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
                 threshold = sign(threshold)*100000;
             end
 
+            %% deal with software amplification
+            if(inputData.softwareAmplification && stimIdx > 1)
+                stim_code = waveforms.waveSent(stimIdx-1);
+                wave_amp1 = waveforms.parameters(stim_code).amp1;
+                wave_pw1 = waveforms.parameters(stim_code).pWidth1; % in us
+                wave_pw2 = waveforms.parameters(stim_code).pWidth2;
+                wave_interphase = waveforms.parameters(stim_code).interphase;
+                
+                wave_length = floor((wave_pw1 + wave_pw2 + wave_interphase)*(30000/10^6)); % in samples
+                
+                max_data_point_amplify = floor(inputData.dukeBoard.max_time_post_stim*30000/10^3); % max_time_post_stim is in ms
+                t_post_stim = (1:1:max_data_point_amplify)'/30;
+                GLM_X = [t_post_stim, wave_amp1+zeros(size(t_post_stim)),wave_pw1+zeros(size(t_post_stim))];
+                
+                amplifier_gain = real(glmval(inputData.dukeBoard.mdl,GLM_X,inputData.dukeBoard.link_func));
+                
+                stimData(wave_length+1:wave_length+max_data_point_amplify) = stimData(wave_length+1:wave_length+max_data_point_amplify)./amplifier_gain;
+            end
+            
             %% get threshold crossings
             thresholdCrossings = find(stimData>abs(threshold)); % acausal filtered data, positive threshold
             % check if too close to beginning or end
@@ -445,7 +487,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             for cross = numel(thresholdCrossings):-1:2
                 if(crossingsMask(cross) == 1) % check time beforehand to see if one is too close
                     crossCheck = cross-1;
-                    while crossCheck >= 1 && thresholdCrossings(crossCheck) >= thresholdCrossings(cross) - (preOffset+postOffset)
+                    while crossCheck >= 1 && thresholdCrossings(crossCheck) >= thresholdCrossings(cross) - max(30,max(preOffset,postOffset))
                         crossingsMask(crossCheck) = 0;
                         crossCheck = crossCheck-1;
                     end
@@ -460,7 +502,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
                 else
                     spikeTimes(spikeNum) = neuralLFP(1,stimulationInformation.stimOn(stimIdx-1)+thresholdCrossings(cross)-1-numAppend); % this is in secondss
                 end
-                spikeChan(spikeNum) = NSx.ElectrodesInfo(ch).ElectrodeID;
+                spikeChan(spikeNum) = ch;
                 
                 spikeWaves(spikeNum,:) = stimData((thresholdCrossings(cross)-preOffset):(thresholdCrossings(cross)+postOffset),1);
                 spikeNum = spikeNum + 1;
@@ -521,7 +563,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     artifactData.t = zeros(1000,1);
     % preset artifactData.artifact size based on num channels, subtract 1
     % for the time column
-    artifactData.artifact = zeros(1000,sum(chanMask),artifactDataTime*30000/1000 + inputData.presample);
+    artifactData.artifact = zeros(1000,numel(inputData.good_chan_list),artifactDataTime*30000/1000 + inputData.presample);
     
     stimulationInformation.stimOn = stimulationInformation.stimOn(stimOnMask==1);
     if(isfield(inputData,'artifactSkip'))
@@ -533,7 +575,7 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
     
     for art = 1:artifactSkip:numel(stimulationInformation.stimOn)           
         if(stimulationInformation.stimOn(art)-inputData.presample > 1 && stimulationInformation.stimOn(art) + artifactDataTime*30000/1000 <= size(neuralLFP,2))
-            artifactData.artifact(artifactDataIndex,:,:) = neuralLFP(2:end,stimulationInformation.stimOn(art)-inputData.presample:stimulationInformation.stimOn(art)+floor(artifactDataTime*30000/1000)-1);
+            artifactData.artifact(artifactDataIndex,:,:) = neuralLFP(inputData.good_chan_list+1,stimulationInformation.stimOn(art)-inputData.presample:stimulationInformation.stimOn(art)+floor(artifactDataTime*30000/1000)-1);
             artifactData.t(artifactDataIndex,1) = neuralLFP(1,stimulationInformation.stimOn(art));
             artifactDataIndex = artifactDataIndex + 1;
         end
