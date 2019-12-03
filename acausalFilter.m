@@ -14,7 +14,7 @@ function [filteredData] = acausalFilter(data)
     numPad = 300;
     % make filter
     [b,a] = butter(6,[500]/(30000/2),'high');
-%     [b,a] = butter(6,[500,4500]/(30000/2),'bandpass');
+%     [b,a] = butter(6,[500,5000]/(30000/2),'bandpass');
     % pad data
     data = [repmat(mean(data(1:min(15,size(data,1)),:)),[numPad,1]);...
         data;...

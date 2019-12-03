@@ -2,33 +2,32 @@
     clear
     pwd = cd;
 
-    inputData.folderpath= 'C:\Users\jts3256\Desktop\Han_stim_data\Han_20190923_trains_noAmp\'; % must have \ at the end
+    inputData.folderpath= 'E:\Data\Joseph\Duncan_stim_data\Duncan_20191126_longTrains_dukeGen2\'; % must have \ at the end
 
-    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
-%     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Duncan_17L1\mapfiles\right S1 20180919\SN 6251-001804.cmp';
+%     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
+    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Duncan_17L1\mapfiles\right S1 20180919\SN 6251-001804.cmp';
     
 
     inputData.task='taskCObump';
     inputData.ranBy='ranByJoseph'; 
     inputData.array1='arrayLeftS1'; 
-    inputData.monkey='monkeyHan';
+    inputData.monkey='monkeyDuncan';
     inputData.labnum = 6;
     
     inputData.templateSubtract = 0;
     
-    inputData.dukeBoardChannel = -1; % -1 means not used
+    dukeBoardChannel = repmat([1,10],1,8); % -1 means not used
     inputData.dukeBoardLabel = 'ainp15';
 
+    inputData.good_chan_list=1:96;
+
+    
     % multiplies signal after stimulation based on recorded gain for that
     % stim_code. See analyzeNS5Data in proc-joe
     inputData.softwareAmplification = 0;
-    inputData.dukeBoard.mdl = [];
-    inputData.dukeBoard.link_func = [];
-    inputData.dukeBoard.max_time_post_stim = [];
     
-    inputData.good_chan_list=1:96;
-%     inputData.good_chan_list = inputData.dukeBoardChannel;
-    inputData.blankTime = 0.25; %ms this includes the preoffset, 0.25 seems to work well
+
+    inputData.blankTime = 0; %ms this includes the preoffset, 0.25 seems to work well
     
     % functionName='processStimArtifactData';
 
@@ -42,7 +41,7 @@
     inputData.numPulses = 39;
     inputData.pulseFrequency = 3300;
 
-    inputData.thresholdMult = 3.5;
+    inputData.thresholdMult = 3;
     inputData.artifactSkip = 1;
     inputData.maxAmplitude = 1000; % in uV
 
@@ -57,12 +56,16 @@
     % save input data
     save(strcat(fileList(1).name(1:end-4),'_inputData.mat'),'inputData');
 
-    nevDataAll = [];
-    durationAll = 0;
+
     % process data
     for f = 1:numel(fileList)
         inputData.filename = fileList(f).name;
-
+        
+        chan_idx = strfind(fileList(f).name,'chan');
+        stim_idx = strfind(fileList(f).name,'stim');
+        inputData.dukeBoardChannel = str2num(fileList(f).name(chan_idx+4:stim_idx-1));
+%         inputData.good_chan_list = inputData.dukeBoardChannel;
+        
         [~,outputData] = filterAndThresholdData(inputData);
         stimInfo = outputData.stimInfo;
         stimInfo.chanSent = outputData.waveforms.chanSent';
@@ -71,6 +74,17 @@
        
         save([inputData.folderpath,inputData.filename(1:end-4),'_outputData.mat'],'outputData','-v7.3');
         save([inputData.folderpath,inputData.filename(1:end-4),'_stimInfo.mat'],'stimInfo','-v7.3');
+        
+    end
+% once all files are processed, load in outputData and then write nev
+    % file
+    cd(inputData.folderpath)
+    fileList = dirSorted('*outputData*');
+    
+    nevDataAll = [];
+    durationAll = 0;
+    for f = 1:numel(fileList)
+        load([inputData.folderpath,fileList(f).name]);
         % append nev data
         if(f == 1)
             nevDataAll = outputData.nevData;
@@ -82,7 +96,6 @@
         end
         durationAll = durationAll + outputData.duration;
     end
-
     % write nev file
     disp('writing nev file')
 
@@ -96,10 +109,9 @@
     cd(pwd);
     disp('DONE -- CAN CONTINUE')
 
+    
+    
 %% sort *_merged and call it *_merged-s, rename ns1 as well (?)
-
-%% load in *_merged-s, split apart the units,
-
 
 %% save the units to a new nev file as well as to output data and a stimInfo file
 % the new nev file (*_spikesExtracted*), the new ns5 (*_spikesExtracted*), and the stimInfo mat file are needed for

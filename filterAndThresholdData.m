@@ -88,17 +88,20 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
      
     if(~isfield(inputData,'softwareAmplification'))
         error('no softwareAmplification field');
-    elseif(inputData.softwareAmplification && (isempty(inputData.dukeBoard.mdl) || isempty(inputData.dukeBoard.link_func)))
+    elseif(inputData.softwareAmplification)
         % try to find file with glm_data in filename
-        glm_file = dir([inputData.folderpath,'*glm_data*']);
-        if(~isempty(glm_file))
-            load([glm_file.folder,'/',glm_file.name]);
-            inputData.dukeBoard.mdl = b;
-            inputData.dukeBoard.link_func = link_func;
-            inputData.dukeBoard.max_time_post_stim = max_time_post_stim;
-            clear b; clear link_func; clear max_time_post_stim;
+        gain_ratio_file = dir([inputData.folderpath,'*gain_ratio*']);
+        if(~isempty(gain_ratio_file))
+            load([gain_ratio_file.folder,'/',gain_ratio_file.name]);
+            inputData.dukeBoard.gain_ratio = gain_ratio;
+            inputData.dukeBoard.amp_1_all = amp_1_all;
+            inputData.dukeBoard.polarity = polarity;
+            inputData.dukeBoard.t_post_stim = t_post_stim_test;
+            inputData.dukeBoard.pw1 = pw1;
+            clear gain_ratio; clear amp_1_all; clear polarity; clear t_post_stim_test;
+            clear pw1;
             
-            warning('loaded a glm from a file. Stop if this is not desired');
+            warning('loaded a gain_ratio from a file. Stop if this is not desired');
         else
             % else throw an error
             error('supposed to do software amplification but glm field is empty and can''t find file with glm_data in name');
@@ -414,20 +417,25 @@ function [outputFigures, outputData ] = filterAndThresholdData(inputData)
             end
 
             %% deal with software amplification
-            if(inputData.softwareAmplification && stimIdx > 1)
+            if(inputData.softwareAmplification && stimIdx > 1 && ch == inputData.dukeBoardChannel)
                 stim_code = waveforms.waveSent(stimIdx-1);
-                wave_amp1 = waveforms.parameters(stim_code).amp1;
-                wave_pw1 = waveforms.parameters(stim_code).pWidth1; % in us
-                wave_pw2 = waveforms.parameters(stim_code).pWidth2;
-                wave_interphase = waveforms.parameters(stim_code).interphase;
+                amp_idx = find(inputData.dukeBoard.amp_1_all == waveforms.parameters(stim_code).amp1);
+                pw_idx = find(inputData.dukeBoard.pw1 == waveforms.parameters(stim_code).pWidth1); % in us
+                polarity_idx = find(inputData.dukeBoard.polarity == waveforms.parameters(stim_code).polarity);
                 
-                wave_length = floor((wave_pw1 + wave_pw2 + wave_interphase)*(30000/10^6)); % in samples
+                wave_length = floor((waveforms.parameters(stim_code).pWidth1 + waveforms.parameters(stim_code).pWidth2 + ...
+                    waveforms.parameters(stim_code).interphase)*(30000/10^6)); % in samples
                 
-                max_data_point_amplify = floor(inputData.dukeBoard.max_time_post_stim*30000/10^3); % max_time_post_stim is in ms
+                max_data_point_amplify = floor(max(inputData.dukeBoard.t_post_stim)*30000/10^3); % max_time_post_stim is in ms
                 t_post_stim = (1:1:max_data_point_amplify)'/30;
-                GLM_X = [t_post_stim, wave_amp1+zeros(size(t_post_stim)),wave_pw1+zeros(size(t_post_stim))];
-                
-                amplifier_gain = real(glmval(inputData.dukeBoard.mdl,GLM_X,inputData.dukeBoard.link_func));
+                amplifier_gain = ones(size(t_post_stim));
+                for t_idx = 1:numel(t_post_stim)
+                    t_post_stim_idx = find(t_post_stim(t_idx) <= inputData.dukeBoard.t_post_stim,1,'first');
+                    if(~isempty(t_post_stim_idx))
+                        amplifier_gain(t_idx) = inputData.dukeBoard.gain_ratio(t_post_stim_idx,amp_idx,polarity_idx,pw_idx);
+                    end
+                end
+                amplifier_gain(isnan(amplifier_gain)) = 1;
                 
                 stimData(wave_length+1:wave_length+max_data_point_amplify) = stimData(wave_length+1:wave_length+max_data_point_amplify)./amplifier_gain;
             end
