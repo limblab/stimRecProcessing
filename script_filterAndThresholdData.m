@@ -2,24 +2,23 @@
     clear
     pwd = cd;
 
-    inputData.folderpath= 'E:\Data\Joseph\Duncan_stim_data\Duncan_20191126_longTrains_dukeGen2\'; % must have \ at the end
+    inputData.folderpath= 'E:\Data\Joseph\Fcreact\Han_20200925_FCreact_record\'; % must have \ at the end
 
-%     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
-    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Duncan_17L1\mapfiles\right S1 20180919\SN 6251-001804.cmp';
+    inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Han_13B1\map files\Left S1\SN 6251-001459.cmp';
+%     inputData.mapFile = 'mapFileR:\limblab\lab_folder\Animal-Miscellany\Duncan_17L1\mapfiles\right S1 20180919\SN 6251-001804.cmp';
     
 
-    inputData.task='taskCObump';
+    inputData.task='taskRT';
     inputData.ranBy='ranByJoseph'; 
     inputData.array1='arrayLeftS1'; 
-    inputData.monkey='monkeyDuncan';
+    inputData.monkey='monkeyHan';
     inputData.labnum = 6;
     
     inputData.templateSubtract = 0;
     
-    dukeBoardChannel = repmat([1,10],1,8); % -1 means not used
     inputData.dukeBoardLabel = 'ainp15';
-
-    inputData.good_chan_list=1:96;
+    inputData.dukeBoardChannel = 62;
+    inputData.good_chan_list=[1:96]; % can be set below, check for loop
 
     
     % multiplies signal after stimulation based on recorded gain for that
@@ -49,7 +48,7 @@
     
     
     
-%% get spike crossing for all files, write a nev file
+% get spike crossing for all files, write a nev file
     cd(inputData.folderpath)
     fileList = dirSorted('*.ns5');
     outputData = [];
@@ -61,9 +60,11 @@
     for f = 1:numel(fileList)
         inputData.filename = fileList(f).name;
         
-        chan_idx = strfind(fileList(f).name,'chan');
-        stim_idx = strfind(fileList(f).name,'stim');
-        inputData.dukeBoardChannel = str2num(fileList(f).name(chan_idx+4:stim_idx-1));
+%         chan_idx = strfind(fileList(f).name,'chan');
+%         chan_idx = chan_idx(2);
+%         stim_idx = strfind(fileList(f).name,'stim');
+%         stim_idx = stim_idx(1);
+%         inputData.dukeBoardChannel = str2num(fileList(f).name(chan_idx+4:stim_idx-1))
 %         inputData.good_chan_list = inputData.dukeBoardChannel;
         
         [~,outputData] = filterAndThresholdData(inputData);

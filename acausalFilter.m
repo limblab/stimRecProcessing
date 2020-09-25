@@ -25,9 +25,10 @@ function [filteredData] = acausalFilter(data)
 %     [b,a] = butter(4,[4000]/(30000/2),'low');
 %     filteredData = flip(filter(b,a,flip(filteredData,1)),1);
     
-%     [b,a] = butter(2,[7500]/(30000/2),'low');
-%     f = fliplr(filter(b,a,fliplr(f')')')';
-
+%     [b,a] = butter(1,[7500]/(30000/2),'low');
+% 
+%     filteredData = filter(b,a,filteredData);
+    
     % remove padding
     filteredData = filteredData(numPad+1:end-numPad,:);
 end
